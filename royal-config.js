@@ -8,7 +8,7 @@ window.RM_CONFIG = {
     xHandle: "@RoyalMechanica",
     xProfileUrl: "https://x.com/RoyalMechanica",
     // Campaign post used for like / repost / comment tasks:
-    xPostUrl: "https://x.com/RoyalMechanica",
+    xPostUrl: "https://x.com/RoyalMechanica/status/2094094750840504535",
     shareText: "Just joined the @RoyalMechanica whitelist. 6,666 mechanical tickers. royalmechanica.xyz"
   },
 
