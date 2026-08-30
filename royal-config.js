@@ -9,7 +9,7 @@ window.RM_CONFIG = {
     xProfileUrl: "https://x.com/RoyalMechanica",
     // Campaign post used for like / repost / comment tasks:
     xPostUrl: "https://x.com/RoyalMechanica",
-    shareText: "Just joined the Royal Mechanica whitelist. 6,666 mechanical tickers. @RoyalMechanica royalmechanica.xyz"
+    shareText: "Just joined the @RoyalMechanica whitelist. 6,666 mechanical tickers. royalmechanica.xyz"
   },
 
   // Server side. Deploy apps-script.gs inside your Google Sheet (Extensions > Apps Script),
