@@ -30,7 +30,7 @@ window.RM_CONFIG = {
   endpoints: {
     whitelist: "https://script.google.com/macros/s/AKfycbx-V_OCcupzAHZ73XRHmjgMtghD9pyT_o_mxAA_e0dmt0qfIUGPJ5vYTxN9WFIZbCSsHg/exec",
     collabs: "https://script.google.com/macros/s/AKfycbzCtlFjYFKYFpWqkuMYuBBJvjPs0Oj2iti0eNc28FRZpLzdsjezPAwUzlUpIWmTP4oq4A/exec",
-    gtd: "https://script.google.com/macros/s/AKfycbxCRo_CHiAez4nCZp10EeQXvgUSvoaWU9Ecy6uIU7MXgZTLWSU7U-eg2bq5O9OBYKseYw/exec",
+    gtd: "https://script.google.com/macros/s/AKfycbztd1Kk7wOKnMtXwOdqhxLxypYrYSUKWCeYkUtE0GjanPUyTz4VSp1hZMXroAeCgd1Flw/exec",
     verification: ""       // optional X-verification service; empty => pending-review mode
   },
 
