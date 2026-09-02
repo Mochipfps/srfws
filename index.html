@@ -24,6 +24,7 @@
   @keyframes rm-caret{0%,49%{opacity:1}50%,100%{opacity:0}}
   @keyframes rm-fadein{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 </style>
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#00D6B4"/><rect x="30" y="26" width="40" height="10" fill="#EFE3C8"/><rect x="24" y="46" width="52" height="22" rx="4" fill="#23395B"/><text x="50" y="62" font-family="Georgia" font-size="12" text-anchor="middle" fill="#C6FF1E">RM</text></svg></template>
 </helmet>
 
 <div style="min-height:100vh;background:#F2E7D2;color:#1A1614;overflow-x:hidden;width:100%;max-width:100%;position:relative">
@@ -39,10 +40,10 @@
 <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
 <div style="position:fixed;inset:0;z-index:59;background:rgba(20,18,16,.45)" onClick="{{ toggleMenu }}"></div>
 <div style="position:fixed;top:64px;right:18px;z-index:60;background:#EFE3C8;border:1px solid #c9b98f;box-shadow:0 14px 28px rgba(0,0,0,.28);min-width:200px;padding:8px;display:flex;flex-direction:column;gap:4px">
-  <a href="Royal Mechanica.dc.html" onClick="{{ click }}" style="display:block;padding:12px 14px;font-family:'Courier Prime',monospace;font-size:13px;letter-spacing:.15em;color:#16233b;background:#C6FF1E" style-hover="background:#d4ff4a">HOME</a>
-  <a href="whitelist/Whitelist.dc.html" onClick="{{ click }}" style="display:block;padding:12px 14px;font-family:'Courier Prime',monospace;font-size:13px;letter-spacing:.15em;color:#1A1614" style-hover="background:#e4d6b3">WHITELIST</a>
-  <a href="gtdaccess/GtdAccess.dc.html" onClick="{{ click }}" style="display:block;padding:12px 14px;font-family:'Courier Prime',monospace;font-size:13px;letter-spacing:.15em;color:#1A1614" style-hover="background:#e4d6b3">GTD ACCESS</a>
-  <a href="collabs/Collabs.dc.html" onClick="{{ click }}" style="display:block;padding:12px 14px;font-family:'Courier Prime',monospace;font-size:13px;letter-spacing:.15em;color:#1A1614" style-hover="background:#e4d6b3">COLLABS</a>
+  <a href="/" onClick="{{ click }}" style="display:block;padding:12px 14px;font-family:'Courier Prime',monospace;font-size:13px;letter-spacing:.15em;color:#16233b;background:#C6FF1E" style-hover="background:#d4ff4a">HOME</a>
+  <a href="/whitelist" onClick="{{ click }}" style="display:block;padding:12px 14px;font-family:'Courier Prime',monospace;font-size:13px;letter-spacing:.15em;color:#1A1614" style-hover="background:#e4d6b3">WHITELIST</a>
+  <a href="/GtdAccess" onClick="{{ click }}" style="display:block;padding:12px 14px;font-family:'Courier Prime',monospace;font-size:13px;letter-spacing:.15em;color:#1A1614" style-hover="background:#e4d6b3">GTD ACCESS</a>
+  <a href="/collabs" onClick="{{ click }}" style="display:block;padding:12px 14px;font-family:'Courier Prime',monospace;font-size:13px;letter-spacing:.15em;color:#1A1614" style-hover="background:#e4d6b3">COLLABS</a>
 </div>
 </sc-if>
 
@@ -96,7 +97,7 @@
     <div style="font-family:'Courier Prime',monospace;font-size:12px;letter-spacing:.4em;color:#0b3d33;margin-bottom:18px">EST. 6,666 MACHINES</div>
     <h1 style="font-family:'Special Elite',Courier,monospace;font-size:clamp(38px,9vw,96px);line-height:1.02;letter-spacing:.02em;color:#16233b;margin:0 0 22px;max-width:16ch">ROYAL<br/>MECHANICA</h1>
     <p style="font-family:Archivo,sans-serif;font-size:clamp(15px,2vw,19px);color:#0b3d33;max-width:52ch;margin:0 0 40px;line-height:1.55">A collection of 6,666 mechanical machines, each struck with its own stock-market ticker. Register for the whitelist below.</p>
-    <a href="whitelist/Whitelist.dc.html" onClick="{{ click }}" style="font-family:'Special Elite',monospace;font-size:clamp(16px,2vw,20px);letter-spacing:.12em;color:#16233b;background:#C6FF1E;border:none;padding:20px 46px;cursor:pointer;box-shadow:0 6px 0 #8fbf12,0 10px 18px rgba(0,0,0,.2);display:inline-block" style-hover="background:#d4ff4a">JOIN WHITELIST</a>
+    <a href="/whitelist" onClick="{{ click }}" style="font-family:'Special Elite',monospace;font-size:clamp(16px,2vw,20px);letter-spacing:.12em;color:#16233b;background:#C6FF1E;border:none;padding:20px 46px;cursor:pointer;box-shadow:0 6px 0 #8fbf12,0 10px 18px rgba(0,0,0,.2);display:inline-block" style-hover="background:#d4ff4a">JOIN WHITELIST</a>
     <div style="margin-top:56px;display:flex;gap:28px;flex-wrap:wrap;justify-content:center;font-family:'Courier Prime',monospace;font-size:12px;letter-spacing:.2em;color:#0b3d33">
       <span>SUPPLY 6,666</span><span>&middot;</span><span>WHITELIST OPEN</span><span>&middot;</span><a href="{{ xProfileUrl }}" target="_blank" rel="noopener" style="color:#16233b" style-hover="color:#0b3d33">{{ xHandle }}</a>
     </div>
