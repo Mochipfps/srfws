@@ -31,7 +31,7 @@ window.RM_CONFIG = {
   //   collabAdmin -> apps-script-collabadmin.gs (separate spreadsheet, private portal)
   // Leave a URL empty and that page stays functional in a local/pending mode.
   endpoints: {
-    whitelist: "https://script.google.com/macros/s/AKfycbx-V_OCcupzAHZ73XRHmjgMtghD9pyT_o_mxAA_e0dmt0qfIUGPJ5vYTxN9WFIZbCSsHg/exec",
+    whitelist: "https://script.google.com/macros/s/AKfycbxmbHeMn6afkuS5we8ZHEro3A6r7jC3g3URBCRJjOo5AYmjtZ360Hi-O6D6z9ot1tfrRw/exec",
     collabs: "https://script.google.com/macros/s/AKfycbzCtlFjYFKYFpWqkuMYuBBJvjPs0Oj2iti0eNc28FRZpLzdsjezPAwUzlUpIWmTP4oq4A/exec",
     gtd: "https://script.google.com/macros/s/AKfycbztd1Kk7wOKnMtXwOdqhxLxypYrYSUKWCeYkUtE0GjanPUyTz4VSp1hZMXroAeCgd1Flw/exec",
     // Public GTD Approved Ledger. Source of truth for the public approved count.
