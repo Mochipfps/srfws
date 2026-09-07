@@ -19,7 +19,7 @@ window.RM_CONFIG = {
   },
 
   endpoints: {
-    whitelist: "https://script.google.com/macros/s/AKfycbxmbHeMn6afkuS5we8ZHEro3A6r7jC3g3URBCRJjOo5AYmjtZ360Hi-O6D6z9ot1tfrRw/exec",
+    whitelist: "https://script.google.com/macros/s/AKfycbyeKUIDYsRyjFlW7qUXhW48lD3bO3rJPqtaq-NkYTG0Ub9Di4aNhxP7Yb6fv2sDokxeBw/exec",
     collabs: "https://script.google.com/macros/s/AKfycbzCtlFjYFKYFpWqkuMYuBBJvjPs0Oj2iti0eNc28FRZpLzdsjezPAwUzlUpIWmTP4oq4A/exec",
     gtd: "https://script.google.com/macros/s/AKfycbztd1Kk7wOKnMtXwOdqhxLxypYrYSUKWCeYkUtE0GjanPUyTz4VSp1hZMXroAeCgd1Flw/exec",
 
