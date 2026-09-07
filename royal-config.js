@@ -1,3 +1,5 @@
+/* Royal Mechanica — single configuration point (Phase 1).
+   Edit values here only. No secrets belong in this file. */
 window.RM_CONFIG = {
   collection: {
     name: "Royal Mechanica",
@@ -5,11 +7,13 @@ window.RM_CONFIG = {
     domain: "royalmechanica.xyz",
     xHandle: "@RoyalMechanica",
     xProfileUrl: "https://x.com/RoyalMechanica",
-
+    // Campaign post used for like / repost / comment tasks:
     xPostUrl: "https://x.com/RoyalMechanica/status/2094094750840504535",
     shareText: "Just joined the Royal Mechanica whitelist. 6,666 mechanical tickers. @RoyalMechanica royalmechanica.xyz"
   },
 
+  // Public site URLs (used for the menu's absolute hrefs / share text).
+  // In-app navigation between pages uses relative file links, set per page.
   urls: {
     home: "https://royalmechanica.xyz/",
     whitelist: "https://royalmechanica.xyz/whitelist/",
@@ -18,25 +22,36 @@ window.RM_CONFIG = {
     collabs: "https://royalmechanica.xyz/collabs/"
   },
 
+  // Server side — THREE separate Google Spreadsheets, each with its own
+  // Apps Script and its own Web App URL. They share no data.
+  //   whitelist -> apps-script-whitelist.gs  (LOCKED existing system)
+  //   collabs   -> apps-script-collabs.gs    (separate spreadsheet)
+  //   gtd       -> apps-script-gtd.gs        (separate spreadsheet)
+  //   ledger    -> apps-script-ledger.gs     (separate spreadsheet, READ-ONLY)
+  //   collabAdmin -> apps-script-collabadmin.gs (separate spreadsheet, private portal)
+  // Leave a URL empty and that page stays functional in a local/pending mode.
   endpoints: {
     whitelist: "https://script.google.com/macros/s/AKfycbz3klseo4Eh-YEAk2Js-hduhu_NtTMEHQs2jQQkpPN6YaWKG2KK6FSlTTvE9oi-EMZp/exec",
     collabs: "https://script.google.com/macros/s/AKfycbzCtlFjYFKYFpWqkuMYuBBJvjPs0Oj2iti0eNc28FRZpLzdsjezPAwUzlUpIWmTP4oq4A/exec",
     gtd: "https://script.google.com/macros/s/AKfycbztd1Kk7wOKnMtXwOdqhxLxypYrYSUKWCeYkUtE0GjanPUyTz4VSp1hZMXroAeCgd1Flw/exec",
-
+    // Public GTD Approved Ledger. Source of truth for the public approved count.
+    // Read-only endpoint; paste the Web App URL from apps-script-ledger.gs here.
     ledger: "https://script.google.com/macros/s/AKfycbzsI_B5wOZpqIWoeKVbkTsf_IZkktF3hIgDAZ86d67Hp8QkBtrpLG3bzF1wqApJyyP6bA/exec",
-     
+    // Private collaborator portal (/CollabAdmin). Not linked from any public page.
+    // Paste the Web App URL from apps-script-collabadmin.gs here.
     collabAdmin: "https://script.google.com/macros/s/AKfycbxxoPDANqGKpzU9sDB-8ayAjRzyue9NcPxKQ6bRtXNPod8xDztXiM5fvGkSLXg6KjjYOA/exec",
-    verification: "" 
+    verification: ""       // optional X-verification service; empty => pending-review mode
   },
 
-
+  // GTD Access. No scheduled window: applications are open on deploy and close
+  // only when approved entries reach totalSpots.
   gtd: {
     totalSpots: 500
   },
 
   tickers: ["$NVDA", "$MSFT", "$GOOGL", "$AAPL", "$AMZN", "$META", "$TSLA", "$NFLX", "$AMD", "$INTC", "$ORCL", "$ADBE", "$CRM", "$AVGO", "$QCOM", "$UBER", "$COIN", "$SHOP", "$PLTR", "$COST", "$PEP", "$KO", "$DIS"],
 
-
+  // Gallery is data-driven: add entries, nothing else changes.
   gallery: [
     { id: "0417", ticker: "$NVDA",  image: "assets/nft-04.png", ground: "#00D6B4", rarity: "Index Class" },
     { id: "1102", ticker: "$MSFT",  image: "assets/nft-05.png", ground: "#FF7A1A", rarity: "Blue Chip" },
