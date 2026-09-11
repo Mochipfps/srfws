@@ -420,6 +420,7 @@ function init3D(){
   scene.fog=new THREE.Fog(0x141019,50,155);
   camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,500);
   camera.position.set(0,3.4,12);
+  applyCameraFraming();
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.setSize(innerWidth,innerHeight);
@@ -444,8 +445,28 @@ function init3D(){
   addEventListener("resize",onResize);
   animate();
 }
+/* PerspectiveCamera holds the VERTICAL fov fixed, so the horizontal fov is
+   whatever the aspect ratio leaves: ~86deg on a landscape desktop but only
+   ~31deg on a tall phone, which pushed the walls, columns and ceiling outside
+   the frame. In portrait we therefore solve for the vertical fov that keeps the
+   horizontal fov at its square-viewport value (60deg), so the same scene stays
+   in shot. Landscape (aspect >= 1) keeps fov 60 exactly as before, so every
+   desktop and tablet width renders identically to the current build. */
+var BASE_FOV=60, MAX_FOV=95;
+function applyCameraFraming(){
+  var aspect=innerWidth/innerHeight;
+  camera.aspect=aspect;
+  if(aspect>=1){
+    camera.fov=BASE_FOV;
+  }else{
+    var halfH=Math.tan(BASE_FOV*Math.PI/360);      // horizontal half-angle to hold
+    var fov=2*Math.atan(halfH/aspect)*180/Math.PI;
+    camera.fov=Math.min(fov,MAX_FOV);              // cap keeps the wide end from distorting
+  }
+  camera.updateProjectionMatrix();
+}
 function onResize(){
-  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  applyCameraFraming();
   renderer.setSize(innerWidth,innerHeight); layoutEntry();
 }
 
