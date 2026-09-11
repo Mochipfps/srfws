@@ -3980,7 +3980,12 @@ function animateFlag(){
 function layoutEntry(){
   var w=innerWidth,h=innerHeight;
   isMobile=w<820;
-  if(isMobile) bld.style.setProperty("--u",Math.max(w/22,17)+"px");
+  /* #bld is 100 units wide by 66 tall. The old mobile rule (--u = w/22) sized
+     the 100-unit facade to just 22 units of screen width, so it rendered ~4.5x
+     wider than the viewport and the wings, side walls and roofline fell outside
+     it. Fit the real unit span to the viewport instead, exactly as the desktop
+     branch already does, so the whole facade is on screen. */
+  if(isMobile) bld.style.setProperty("--u",Math.max(3,Math.min((w*0.98)/100,(h*0.92)/66))+"px");
   else bld.style.setProperty("--u",Math.max(6,Math.min((w*0.985)/100,(h*0.96)/72))+"px");
   applyEntryProgress();
 }
@@ -3991,7 +3996,10 @@ function applyEntryProgress(){
   dGlow.style.opacity=prog;
   var doorY=u*14.5;
   var scale=1+prog*(isMobile?2.6:4.2);
-  var startShift=isMobile?(innerHeight*0.5-doorY*1.1):0;
+  /* camWrap bottom-aligns the facade. At the corrected mobile scale that left a
+     tall empty sky above it, so lift it by the leftover space to centre the
+     composition; the old value assumed the oversized w/22 unit. */
+  var startShift=isMobile?-(innerHeight-u*66)*0.42:0;
   var shift=startShift+prog*(innerHeight*0.5-doorY*0.15);
   camWrap.style.transformOrigin="50% calc(100% - "+doorY+"px)";
   camWrap.style.transform="translateY("+shift+"px) scale("+scale+")";
