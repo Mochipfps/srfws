@@ -4263,9 +4263,24 @@ function ico(slug, domain){
 var OPENSEA_COLLECTION = "https://opensea.io/collection/theroyalmechanica";
 var CAT_MAP = "9325131115341444002035400335400534155443040515205335304301333435232353051502433203341543304440442102425234555320233100031043411111324343353350542510500430502415342442530221013220133110335334203415122544101110552044250312413015534543054252425544145054251354021222104214344240253003035322025502450344104433411414151525135552312525545020014453245025221402030245350323211035453424010143004334504311441335245355521405211513033330125414410355041245142015342514455402504312530111121400521355142540002134124100344121533311504324343540212124045515011245410011001254252344335204000250551531244131435130534233420254120303153321033431042410341424511145412520432511541142005342511305343223350545125121114231103415442021254152352141022114133002352550234244435245052015345135512200024513341034014535322215251104231305352002235253412232435044322252303212032315530033003521243405513012113324100351530013233014211051320015423252541323225250332034333433253320344355323254343523230122355224235242555121210350551214104522245534313055050320523023230302200400524011242010051425414521451514532522445420005432131432440020212534223302531303023313524530115021153031022444452521501315034004444120533551511321140450113042554022004012231203355432110022205230140153003325234033321122211153410535044353313140203442422135252453315230454131311130241545301051555355553345115224045055201542321004322530243425114014151421202154401252234532551214021021232123511113021415553442532144025040502240410104520035453154030515314450451433423440252444425410012500053115155322150513351153403045344032152404500132042115052311140132532004415451141343302420012532544520510402415103340542221040024424525242440043321334440020134431335331453045225130425140045315220340234350313221503115512130551400322523400101032531515534213140222103503511000551400114113040404325141054255001112002304045115312402452424114420030245432320142401552021551241214112552425324432504131402454130450104241002513142350440401404410402130135151441011533455432521043131100320133515421113042405054114445324555105054411115055152143355332141555513113334243010524011222424403311152541324314343242150550031332210014502023503220432440230243334232331510243540453401333221041042203043253333552420533045501310151213023354521521220242555012402034420552024200212234002030524052404502404324200514554424141251041221524520234542430233325202035514554553005501302024400053400152024230130034413254113413240355110504033241520024545155443245024441040025005513254520352435045325512114351022104110254010410230213323051422015010042551114444401432503213315354424554421513032150500242342304220250455310024503101205020314214511203452045254012301020241123231342412150151223345015541220342311411301400240121553402322133541221343133315354044554035110412143414201025051054400240100320221225415232423310434030523545040205501501532243344410235415502340234010141232400301521423355131302022245233333442114403452102002020501055010153414553240213053041201550543151120315454325004253343241150105055211224424143215535511200031225305230114451113221245502404335115043310550150542254020555211524120555252254041041552111011212532332132042043444143223320515343525414445341123002102245532232011521315043410154320151351102013503244452040322430153201012525542500134503331131055122413131540533225302415201554011305200300133533122440341045504303522112050521140053133424021133041115435055535552135235512250441242124234215514545003201421241504301232513041255400445255143415542100312123400024011305351345323425032124351252334323005555235431245123550120341451010034150133310130030241221233355415325422243331533201120215412505355324020434400043551412305200342020343004415115352412003415244051323152013221320123322344200231550505523540142053343032011341334330553303401200310132043225514322510013003343342513304451440354400421220245254432134502350210345233101513102535045330510404141220325143110450050455033315032105231453200515154023214440433133104430521552341102545511002233520343530400301224400410353423210143152440214351431303353415512310542505415125251143440335434332521324305145420051431534444340225443534124544401102014023342555001521003032032313330455252050502202011050420321124001544103331021010453214143345533411523321432214445105405315134544321421015350054033142104333";
 function catFromMetadata(id){
-  if(!(id>=0) || id>=CAT_MAP.length) return -1;
-  var c=CAT_MAP.charCodeAt(id)-48;
+  var n = typeof id==="number" ? id : parseInt(id,10);
+  if(!(n>=0) || n>=CAT_MAP.length) return -1;
+  var c=CAT_MAP.charCodeAt(n)-48;
   return (c>=0 && c<=5) ? c : -1;
+}
+
+function symbolOfToken(id){
+  var c=catFromMetadata(id);
+  return c<0 ? "UNKNOWN" : SYMS[c];
+}
+
+
+function noteMismatch(id, chainCat){
+  var meta=catFromMetadata(id);
+  if(meta<0 || chainCat<0 || meta===chainCat) return false;
+  var already=W3.chainMismatch.some(function(m){ return m.id===id; });
+  if(!already) W3.chainMismatch.push({id:id, meta:meta, chain:chainCat});
+  return true;
 }
 
 
@@ -4318,7 +4333,7 @@ var W3 = {
   ready:false, ethers:null, address:null, chainId:null, expectedChainId:null,
   provider:null, signer:null, staking:null, nft:null, readIface:null, nftIface:null,
   approved:false, depositFee:null, rpcIndex:0,
-  myTokens:{}, myStaked:[], pending:[0,0,0,0,0,0], busy:false,
+  myTokens:{}, myStaked:[], pending:[0,0,0,0,0,0], busy:false, chainMismatch:[], lookupMode:false,
   providers:[], selected:null, lastRefresh:0
 };
 window.RM_WEB3 = W3;
@@ -4712,6 +4727,7 @@ function loadOwnedTokens(){
       if(!byCat[c]) byCat[c]=[];
       byCat[c].push(id);
     });
+    verifyChainCategories(ids);
     if(!unknown.length) return { byCat:byCat, ids:ids, unknown:[] };
     return readCall(W3.readIface,STAKING_ADDRESS,"categoriesOfBatch",[unknown])
       .then(function(res){
@@ -4725,6 +4741,30 @@ function loadOwnedTokens(){
         return { byCat:byCat, ids:ids, unknown:[] };
       }).catch(function(){ return { byCat:byCat, ids:ids, unknown:unknown }; });
   }).catch(function(){ return { byCat:{}, ids:[], unknown:[] }; });
+}
+
+function verifyChainCategories(ids){
+  if(!ids || !ids.length) return;
+  var sample=ids.slice(0,40);
+  readCall(W3.readIface,STAKING_ADDRESS,"categoriesOfBatch",[sample]).then(function(res){
+    var cats=res[0];
+    var bad=0;
+    sample.forEach(function(id,i){
+      var chainCat=Number(cats[i]);
+      if(chainCat<0) return;
+      if(noteMismatch(id, chainCat)) bad++;
+    });
+    if(bad>0){
+      console.log("category mismatch on chain for "+bad+" token(s)", W3.chainMismatch);
+    }
+  }).catch(function(){});
+}
+
+function mismatchReport(){
+  if(!W3.chainMismatch.length) return null;
+  return W3.chainMismatch.map(function(m){
+    return "#"+m.id+" is "+SYMS[m.meta]+" but the contract has it as "+SYMS[m.chain];
+  });
 }
 
 function refreshChainState(){
@@ -4999,7 +5039,15 @@ function doStake(tokenId, idx){
   if(needWallet()) return;
   var b=BOOTHS[idx];
   buttons([]);
-  log("sys","Preparing certificate #"+tokenId+" for the counter.");
+  log("sys","Preparing certificate #"+tokenId+" ("+symbolOfToken(tokenId)+") for the counter.");
+  var metaCat=catFromMetadata(tokenId);
+  if(metaCat>=0 && metaCat!==idx){
+    log("a","That certificate is a $"+SYMS[metaCat]+" piece, so it belongs at counter "
+      +("0"+(metaCat+1)).slice(-2)+". I cannot take it here.");
+    toast("#"+tokenId+" BELONGS TO THE $"+SYMS[metaCat]+" COUNTER","err",5200);
+    counterButtons(idx);
+    return;
+  }
 
   preflightStake(tokenId).then(function(pf){
     if(!pf.ok){
@@ -5362,7 +5410,7 @@ function liveClaimPanel(idx, tokenId){
   window.currentAgent=b.agent;
   setPanel(b.agent+" &#183; $"+b.sym, "DEPOSIT CONFIRMED ON CHAIN", hex(b.col), false);
   document.getElementById("pLog").innerHTML="";
-  log("sys","Certificate #"+tokenId+" is now held by the vault contract.");
+  log("sys","Certificate #"+tokenId+" ("+symbolOfToken(tokenId)+") is now held by the vault contract.");
   var amt=W3.pending[idx];
   var human=amt ? E.utils.formatEther(amt) : "0.0";
   var hasReward = amt && amt.gt && amt.gt(0);
@@ -5470,6 +5518,12 @@ function liveStakeList(idx){
   window.currentAgent=b.agent;
   setPanel(b.agent+" &#183; $"+b.sym,"DEPOSIT A CERTIFICATE",hex(b.col),false);
 
+  var warn=mismatchReport();
+  if(warn){
+    log("sys","Note: the contract's stored ticker for "+warn.length
+      +" of your tokens does not match the collection metadata. The counters follow the metadata.");
+  }
+
   var elsewhere=[];
   for(var c=0;c<6;c++){
     if(c===idx) continue;
@@ -5502,7 +5556,7 @@ function liveStakeList(idx){
   }
 
   var btns=list.slice(0,18).map(function(id){
-    return {label:"#"+id,fn:function(){ doStake(id,idx); }};
+    return {label:"#"+id+"  "+symbolOfToken(id),fn:function(){ doStake(id,idx); }};
   });
 
   elsewhere.forEach(function(e){
@@ -5529,11 +5583,15 @@ function liveUnstakeList(idx){
   }
   Promise.all(mine.map(function(id){
     return readCall(W3.readIface,STAKING_ADDRESS,"stakeDetails",[id]).then(function(r){
-      return { id:id, cat:Number(r[1]), start:Number(r[2]), unlock:Number(r[3]),
+      var chainCat=Number(r[1]);
+      var meta=catFromMetadata(id);
+      noteMismatch(id, chainCat);
+      return { id:id, cat: meta>=0?meta:chainCat, chainCat:chainCat,
+               start:Number(r[2]), unlock:Number(r[3]),
                terms:Number(r[4]), active:r[6], unlockable:r[7] };
     }).catch(function(){
       var c=catFromMetadata(id);
-      return c<0?null:{ id:id, cat:c, start:0, unlock:0, terms:1, active:true, unlockable:false };
+      return c<0?null:{ id:id, cat:c, chainCat:c, start:0, unlock:0, terms:1, active:true, unlockable:false };
     });
   })).then(function(rows){
     var here=rows.filter(function(r){ return r && r.cat===idx; });
@@ -5544,7 +5602,7 @@ function liveUnstakeList(idx){
     }
     log("a","Give me the number of the certificate you want back.");
     var btns=here.map(function(r){
-      var lab="#"+r.id+(r.unlockable?"":"  LOCKED");
+      var lab="#"+r.id+"  "+symbolOfToken(r.id)+(r.unlockable?"":"  LOCKED");
       return {label:lab,gold:r.unlockable,fn:function(){
         if(!r.unlockable){
           var d=new Date(r.unlock*1000);
@@ -5579,11 +5637,15 @@ function liveVaultPanel(){
   }
   Promise.all(mine.map(function(id){
     return readCall(W3.readIface,STAKING_ADDRESS,"stakeDetails",[id]).then(function(r){
-      return { id:id, cat:Number(r[1]), start:Number(r[2]), unlock:Number(r[3]),
+      var chainCat=Number(r[1]);
+      var meta=catFromMetadata(id);
+      noteMismatch(id, chainCat);
+      return { id:id, cat: meta>=0?meta:chainCat, chainCat:chainCat,
+               start:Number(r[2]), unlock:Number(r[3]),
                terms:Number(r[4]), active:r[6], unlockable:r[7] };
     }).catch(function(){
       var c=catFromMetadata(id);
-      return c<0?null:{ id:id, cat:c, start:0, unlock:0, terms:1, active:true, unlockable:false };
+      return c<0?null:{ id:id, cat:c, chainCat:c, start:0, unlock:0, terms:1, active:true, unlockable:false };
     });
   })).then(function(rows){
     rows=rows.filter(Boolean);
@@ -5592,7 +5654,7 @@ function liveVaultPanel(){
     if(ready.length) log("a",ready.length+" of them have finished their term. Confirm a renewal and I will reward you for another.");
     else log("a","None have finished their term yet. Come back when the clock runs out.");
     var btns=rows.map(function(r){
-      var sym=SYMS[r.cat];
+      var sym=symbolOfToken(r.id);
       return { label:"#"+r.id+"  "+sym+(r.unlockable?"  RENEW":"  RUNNING"),
         gold:r.unlockable,
         fn:function(){
@@ -5611,6 +5673,23 @@ function liveVaultPanel(){
 }
 
 function patchPanels(){
+  var sendBtn=document.getElementById("pSend");
+  var input=document.getElementById("pInput");
+  if(sendBtn && input){
+    var origClick=sendBtn.onclick;
+    sendBtn.onclick=function(){
+      if(W3.lookupMode){
+        var v=input.value.trim();
+        if(!v) return;
+        log("q",v);
+        handleLookup(v);
+        input.value="";
+        return;
+      }
+      if(origClick) origClick.call(sendBtn);
+    };
+  }
+
   var origCounterButtons = window.counterButtons;
   window.counterButtons = function(idx){
     origCounterButtons(idx);
@@ -5777,8 +5856,15 @@ function holdingsPanel(){
     return;
   }
   log("a",lines.join(".  ")+".");
+  var warn=mismatchReport();
+  if(warn){
+    log("sys","The contract has a different ticker stored for "+warn.length
+      +" token(s): "+warn.slice(0,3).join("; ")+(warn.length>3?" ...":""));
+    log("a","This hall follows the collection metadata, so the counters shown here are the correct ones.");
+  }
   log("a","Pick a token below and I will walk you to its counter, ready to deposit.");
   var btns=[];
+  btns.push({label:"LOOK UP A TOKEN ID",fn:function(){ lookupPanel(); }});
   for(var c=0;c<6;c++){
     var n=(W3.myTokens[c]||[]).length;
     if(!n) continue;
@@ -5797,6 +5883,38 @@ function holdingsPanel(){
   }});
   btns.push({label:"BACK",fn:closePanel});
   buttons(btns);
+}
+
+function lookupPanel(){
+  window.currentAgent="COLLECTION DESK";
+  setPanel("TOKEN LOOKUP","CHECK ANY TOKEN ID","#8fb4d6",true);
+  document.getElementById("pLog").innerHTML="";
+  log("a","Type any token id between 1 and 4242 and I will tell you which counter it belongs to.");
+  W3.lookupMode=true;
+  buttons([{label:"BACK",big:true,fn:function(){ W3.lookupMode=false; holdingsPanel(); }}]);
+}
+
+function handleLookup(text){
+  var id=parseInt(String(text).replace(/[^0-9]/g,""),10);
+  if(!(id>=1 && id<=4242)){
+    log("a","Give me a number between 1 and 4242.");
+    return;
+  }
+  var c=catFromMetadata(id);
+  if(c<0){ log("a","I have no record of token #"+id+"."); return; }
+  log("a","Token #"+id+" is a $"+SYMS[c]+" certificate. It belongs at counter "
+    +("0"+(c+1)).slice(-2)+".");
+  var mine=(W3.myTokens[c]||[]).indexOf(id)>=0;
+  log("a", mine ? "You hold this one. I can walk you to that counter now."
+    : "This one is not in your wallet.");
+  if(mine){
+    buttons([
+      {label:"GO TO THE $"+SYMS[c]+" COUNTER",gold:true,big:true,fn:function(){
+        W3.lookupMode=false; closePanel(); walkToSpot(c);
+        setTimeout(function(){ liveStakeList(c); },1800); }},
+      {label:"BACK",fn:function(){ W3.lookupMode=false; holdingsPanel(); }}
+    ]);
+  }
 }
 
 function boot(){
@@ -5822,6 +5940,9 @@ function boot(){
 }
 
 W3.api = {
+  lookupPanel:lookupPanel, handleLookup:handleLookup,
+  symbolOfToken:symbolOfToken, mismatchReport:mismatchReport,
+  verifyChainCategories:verifyChainCategories, noteMismatch:noteMismatch,
   withGas:withGas, preflightStake:preflightStake, waitFor:waitFor,
   holdingsPanel:holdingsPanel, updateHoldingsBoard:updateHoldingsBoard,
   catFromMetadata:catFromMetadata,
