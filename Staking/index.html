@@ -408,6 +408,7 @@ var clockFaces=[],boardData=[],sheetData=[],sideBoards={},marketBoard=null;
 var clickTargets=[],swayPots=[],calendars=[],walkSpots=[];
 var vaultParts={},drawerMeshes={},bankInfo={},rewardParts={};
 var GOLD,MARBLE,WOOD,DARKW;
+var LIGHT_BUDGET=14, ALL_LIGHTS=[], lightTick=0;
 
 function mkC(w,h){ var c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
 function tex(c){ var t=new THREE.CanvasTexture(c); t.anisotropy=4; return t; }
@@ -420,8 +421,8 @@ function init3D(){
   scene.fog=new THREE.Fog(0x141019,50,155);
   camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,500);
   camera.position.set(0,3.4,12);
-  applyCameraFraming();
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
+  LIGHT_BUDGET = (innerWidth<820 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) ? 4 : 14;
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.setSize(innerWidth,innerHeight);
   document.body.appendChild(renderer.domElement);
@@ -440,35 +441,15 @@ function init3D(){
   buildUpperFloor();
   buildVaultRoom();
   buildTreasury();
+  buildHoldingsBoard();
   buildRewardRoom();
 
+  collectLights();
   addEventListener("resize",onResize);
   animate();
 }
-/* PerspectiveCamera holds the VERTICAL fov fixed, so the horizontal fov is
-   whatever the aspect ratio leaves: ~86deg on a landscape desktop but only
-   ~31deg on a tall phone, which pushed the walls, columns and ceiling outside
-   the frame. In portrait we widen the vertical fov to recover some of that
-   horizontal coverage, but only slightly: fov and apparent size trade directly
-   against each other, so a large value (95deg halves the magnification) makes
-   the hall look tiny inside a mostly empty frame. 70deg recovers width while
-   keeping elements near their desktop scale. Landscape (aspect >= 1) keeps fov
-   60 exactly as before, so every desktop and tablet width is unchanged. */
-var BASE_FOV=60, MAX_FOV=70;
-function applyCameraFraming(){
-  var aspect=innerWidth/innerHeight;
-  camera.aspect=aspect;
-  if(aspect>=1){
-    camera.fov=BASE_FOV;
-  }else{
-    var halfH=Math.tan(BASE_FOV*Math.PI/360);      // horizontal half-angle to hold
-    var fov=2*Math.atan(halfH/aspect)*180/Math.PI;
-    camera.fov=Math.min(fov,MAX_FOV);              // cap keeps the wide end from distorting
-  }
-  camera.updateProjectionMatrix();
-}
 function onResize(){
-  applyCameraFraming();
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight); layoutEntry();
 }
 
@@ -476,10 +457,10 @@ var HW=72,HD=94,HH=15,BACKZ=-98;
 var COL_Z=[];
 
 function buildHall(){
-  scene.add(new THREE.AmbientLight(0xdcc094,0.24));
-  var hemi=new THREE.HemisphereLight(0xd4b98c,0x241a2e,0.2);
+  scene.add(new THREE.AmbientLight(0xdcc094,0.46));
+  var hemi=new THREE.HemisphereLight(0xd4b98c,0x2a2038,0.42);
   hemi.position.set(0,20,0); scene.add(hemi);
-  var key=new THREE.DirectionalLight(0xd8bf96,0.16); key.position.set(12,26,16); scene.add(key);
+  var key=new THREE.DirectionalLight(0xd8bf96,0.34); key.position.set(12,26,16); scene.add(key);
   [-21,0,21].forEach(function(x){
     [-6,-30,-52,-80].forEach(function(z){
       var pl=new THREE.PointLight(0xe3b26c,0.26,32); pl.position.set(x,11,z); scene.add(pl);
@@ -553,8 +534,7 @@ function buildHall(){
   ceilPiece(84,188,0,-41);
   ceilPiece(24,115,-54,-77.5);
   ceilPiece(24,45,-54,30.5);
-  ceilPiece(24,115, 54,-77.5);
-  ceilPiece(24,45, 54,30.5);
+  ceilPiece(24,188, 54,-41);
 
   function cornice(wd,x,z,ry){
     var m=new THREE.Mesh(new THREE.BoxGeometry(wd,0.6,0.55),GOLD);
@@ -913,8 +893,7 @@ function buildUpperFloor(){
   slab(84,188,0,-41);
   slab(24,115,-54,-77.5);
   slab(24,45,-54,30.5);
-  slab(24,115, 54,-77.5);
-  slab(24,45, 54,30.5);
+  slab(24,188, 54,-41);
 
   var uWall=new THREE.MeshLambertMaterial({color:0x8a6a3a,side:THREE.DoubleSide});
   function uw(w,h,x,y,z,ry){
@@ -934,7 +913,7 @@ function buildUpperFloor(){
   }
   ceil2(6,188,-69,-41); ceil2(6,188,69,-41); ceil2(84,188,0,-41);
   ceil2(24,115,-54,-77.5); ceil2(24,45,-54,30.5);
-  ceil2(24,115, 54,-77.5); ceil2(24,45, 54,30.5);
+  ceil2(24,188, 54,-41);
   buildThirdFloor(TOP);
 
   [[0,-10],[0,-46],[-30,-30],[30,-30],[0,6],[-30,-70],[30,-70],[0,-84]].forEach(function(pp){
@@ -972,13 +951,13 @@ function buildUpperFloor(){
     var mid=new THREE.Mesh(new THREE.BoxGeometry(w,0.16,d),railMat);
     mid.position.set(cx,UY+1.5,cz); scene.add(mid);
   }
-  [[-54,-20.3],[-54,8.3],[54,-20.3],[54,8.3]].forEach(function(r){
+  [[-54,-20.3],[-54,8.3]].forEach(function(r){
     rail(24.4,0.3,r[0],r[1]);
   });
-  [[-66.3,-6],[-41.7,-6],[41.7,-6],[66.3,-6]].forEach(function(r){
+  [[-66.3,-6],[-41.7,-6]].forEach(function(r){
     rail(0.3,28.4,r[0],r[1]);
   });
-  [-66,-60,-54,-48,-42,42,48,54,60,66].forEach(function(px2){
+  [-66,-60,-54,-48,-42].forEach(function(px2){
     [-20.3,8.3].forEach(function(pz){
       var po=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,2.7,10),railMat);
       po.position.set(px2,UY+1.35,pz); scene.add(po);
@@ -987,7 +966,6 @@ function buildUpperFloor(){
 
   buildStairs(UY);
   buildLift(UY,TOP,-46,-14,0);
-  buildLift(UY,TOP,54,-6,1);
 }
 
 function buildThirdFloor(BASE){
@@ -999,7 +977,7 @@ function buildThirdFloor(BASE){
   }
   slab3(6,188,-69,-41); slab3(6,188,69,-41); slab3(84,188,0,-41);
   slab3(24,115,-54,-77.5); slab3(24,45,-54,30.5);
-  slab3(24,115, 54,-77.5); slab3(24,45, 54,30.5);
+  slab3(24,188, 54,-41);
 
   var wallM=new THREE.MeshLambertMaterial({color:0x2a2038,side:THREE.DoubleSide});
   function w3(w,h,x,y,z,ry){
@@ -1039,9 +1017,9 @@ function buildThirdFloor(BASE){
     var mid=new THREE.Mesh(new THREE.BoxGeometry(w,0.16,d),railMat);
     mid.position.set(cx,BASE+1.5,cz); scene.add(mid);
   }
-  [[-54,-20.3],[-54,8.3],[54,-20.3],[54,8.3]].forEach(function(r){ rail3(24.4,0.3,r[0],r[1]); });
-  [[-66.3,-6],[-41.7,-6],[41.7,-6],[66.3,-6]].forEach(function(r){ rail3(0.3,28.4,r[0],r[1]); });
-  [-66,-60,-54,-48,-42,42,48,54,60,66].forEach(function(px2){
+  [[-54,-20.3],[-54,8.3]].forEach(function(r){ rail3(24.4,0.3,r[0],r[1]); });
+  [[-66.3,-6],[-41.7,-6]].forEach(function(r){ rail3(0.3,28.4,r[0],r[1]); });
+  [-66,-60,-54,-48,-42].forEach(function(px2){
     [-20.3,8.3].forEach(function(pz){
       var po=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,2.7,10),railMat);
       po.position.set(px2,BASE+1.35,pz); scene.add(po);
@@ -2185,6 +2163,18 @@ function drawMarketTag(frame, tokenId){
   frame.tokenId=tokenId;
 }
 
+function holdingsPanel(){
+  if(window.RM_WEB3 && RM_WEB3.api && RM_WEB3.api.holdingsPanel){
+    RM_WEB3.api.holdingsPanel();
+    return;
+  }
+  currentAgent="COLLECTION DESK";
+  setPanel("YOUR COLLECTION","WHAT YOU HOLD AND WHERE IT GOES","#8fb4d6",false);
+  pLog.innerHTML="";
+  log("a","Connect a wallet and this screen will list every Royal Mechanica NFT you hold with the counter it belongs to.");
+  buttons([{label:"BACK",big:true,fn:closePanel}]);
+}
+
 function marketPanel(){
   currentAgent="GALLERY MACHINE";
   setPanel("THE MARKETPLACE","ROYAL MECHANICA ON OPENSEA","#4a7ec9",false);
@@ -2561,9 +2551,122 @@ var VZ=-121, RW=44, RD=46, RH=15;
 
 
 var VIP=null;
-var TREASURY={reserve:0,daily:0,growth:0};
+var TREASURY={reserve:13.08,daily:0,growth:0};
 
 function fmtEth(v){ return v.toFixed(4)+" ETH"; }
+
+var HOLD=null;
+
+function buildHoldingsBoard(){
+  var g=new THREE.Group();
+  g.position.set(60,0,-8);
+  g.rotation.y=-0.72;
+  scene.add(g);
+  var CY=8.2;
+
+  var back=new THREE.Mesh(new THREE.BoxGeometry(23,12.4,0.8),
+    new THREE.MeshLambertMaterial({color:0x0a0a12}));
+  back.position.set(0,CY,0); g.add(back);
+  [6.4,-6.4].forEach(function(dy){
+    var fr=new THREE.Mesh(new THREE.BoxGeometry(23.8,0.34,1.1),GOLD);
+    fr.position.set(0,CY+dy,0.1); g.add(fr);
+  });
+  [-11.5,11.5].forEach(function(dx){
+    var fr=new THREE.Mesh(new THREE.BoxGeometry(0.34,12.8,1.1),GOLD);
+    fr.position.set(dx,CY,0.1); g.add(fr);
+  });
+  [-1,1].forEach(function(sg){
+    var rod=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,HH-CY-6.4,8),GOLD);
+    rod.position.set(sg*9,(HH+CY+6.4)/2,0); g.add(rod);
+  });
+
+  var cv=mkC(1280,700);
+  var t2=tex(cv);
+  var face=new THREE.Mesh(new THREE.PlaneGeometry(21.6,11.2),
+    new THREE.MeshBasicMaterial({map:t2}));
+  face.position.set(0,CY,0.62); g.add(face);
+
+  var hit=new THREE.Mesh(new THREE.BoxGeometry(21.6,11.2,0.5),
+    new THREE.MeshBasicMaterial({visible:false}));
+  hit.position.set(0,CY,0.95); hit.userData.holdings=1;
+  g.add(hit); clickTargets.push(hit);
+
+  var sc=mkC(1024,180), sg2=sc.getContext("2d");
+  sg2.fillStyle="#14110a"; sg2.fillRect(0,0,1024,180);
+  sg2.strokeStyle="#f0c14b"; sg2.lineWidth=9; sg2.strokeRect(10,10,1004,160);
+  sg2.textAlign="center"; sg2.fillStyle="#ffe27a"; sg2.font=PX(32);
+  sg2.fillText("YOUR COLLECTION",512,110);
+  var title=new THREE.Mesh(new THREE.PlaneGeometry(10,1.75),
+    new THREE.MeshBasicMaterial({map:tex(sc)}));
+  title.position.set(0,CY+7.4,0.62); g.add(title);
+
+  HOLD={cv:cv,tex:t2};
+  drawHoldingsBoard(null);
+}
+
+function drawHoldingsBoard(data){
+  if(!HOLD) return;
+  var g=HOLD.cv.getContext("2d");
+  var grd=g.createLinearGradient(0,0,0,700);
+  grd.addColorStop(0,"#0b1220"); grd.addColorStop(1,"#060a12");
+  g.fillStyle=grd; g.fillRect(0,0,1280,700);
+  g.strokeStyle="#2f5d8a"; g.lineWidth=8; g.strokeRect(14,14,1252,672);
+  g.textAlign="center";
+  g.fillStyle="#8fb4d6"; g.font=PX(30);
+  g.fillText("WHAT YOU HOLD AND WHERE IT GOES",640,72);
+
+  if(!data){
+    g.fillStyle="#4a6a8a"; g.font=PX(22);
+    g.fillText("CONNECT YOUR WALLET",640,300);
+    g.fillStyle="#2f5d8a"; g.font=PX(17);
+    g.fillText("Tap this screen to connect. Every Royal Mechanica NFT in your",640,360);
+    g.fillText("wallet will be listed here with the counter it belongs to.",640,392);
+    HOLD.tex.needsUpdate=true;
+    return;
+  }
+
+  g.textAlign="left";
+  g.fillStyle="#2f5d8a"; g.font=PX(16);
+  g.fillText("COUNTER",60,140);
+  g.fillText("TOKEN",300,140);
+  g.fillText("IN WALLET",560,140);
+  g.fillText("IN VAULT",820,140);
+  g.fillText("TOKEN IDS",1040,140);
+  g.strokeStyle="#1b3a55"; g.lineWidth=3;
+  g.beginPath(); g.moveTo(60,158); g.lineTo(1220,158); g.stroke();
+
+  var total=0, staked=0;
+  for(var i=0;i<6;i++){
+    var y=205+i*72;
+    var own=(data.byCat[i]||[]);
+    var st=(data.stakedByCat&&data.stakedByCat[i])||0;
+    total+=own.length; staked+=st;
+    g.fillStyle="#4a6a8a"; g.font=PX(17);
+    g.fillText(("0"+(i+1)).slice(-2),60,y);
+    g.fillStyle= own.length? "#ffe27a":"#3a5570"; g.font=PX(22);
+    g.fillText("$"+SYMS[i],300,y);
+    g.fillStyle= own.length? "#3ad07a":"#3a5570"; g.font=PX(22);
+    g.fillText(""+own.length,560,y);
+    g.fillStyle= st? "#d8b4ff":"#3a5570";
+    g.fillText(""+st,820,y);
+    g.fillStyle="#6e8aa8"; g.font=PX(14);
+    var ids=own.slice(0,6).map(function(x){return "#"+x;}).join(" ");
+    if(own.length>6) ids+=" +"+(own.length-6);
+    g.fillText(ids||"-",1040,y);
+    g.strokeStyle="#132840"; g.lineWidth=2;
+    g.beginPath(); g.moveTo(60,y+20); g.lineTo(1220,y+20); g.stroke();
+  }
+
+  g.textAlign="center";
+  if(total===0 && staked===0){
+    g.fillStyle="#ff8892"; g.font=PX(18);
+    g.fillText("NO ROYAL MECHANICA NFT IN THIS WALLET - TAP TO OPEN OPENSEA",640,662);
+  } else {
+    g.fillStyle="#8fb4d6"; g.font=PX(18);
+    g.fillText(total+" IN WALLET   "+staked+" IN THE VAULT   -   TAP THIS SCREEN TO DEPOSIT",640,662);
+  }
+  HOLD.tex.needsUpdate=true;
+}
 
 function buildTreasury(){
   var g=new THREE.Group(); g.position.set(-58,0,-70); g.rotation.y=0.70; scene.add(g);
@@ -2806,7 +2909,7 @@ function buildVaultRoom(){
       new THREE.MeshBasicMaterial({color:0xaebbd2}));
     fix.position.set(pp[0],RH-0.45,pp[1]); room.add(fix);
   });
-  room.add(new THREE.AmbientLight(0x7c8caa,0.42));
+  room.add(new THREE.AmbientLight(0x8fa0c0,0.7));
 
   var rug2=new THREE.Mesh(new THREE.PlaneGeometry(7,RD-4),
     new THREE.MeshLambertMaterial({color:0x6d1620}));
@@ -2890,7 +2993,7 @@ function buildVaultRoom(){
     m.position.set(cx,4.5,0); m.rotation.y=cx<0?Math.PI/2:-Math.PI/2; corr.add(m);
   });
   var cLight=new THREE.PointLight(0xffd070,0.8,26); cLight.position.set(0,6,0); corr.add(cLight);
-  corr.add(new THREE.AmbientLight(0xffddaa,0.5));
+  corr.add(new THREE.AmbientLight(0xffddaa,0.75));
 }
 
 var RZ=-168;
@@ -2907,7 +3010,7 @@ function buildRewardRoom(){
     new THREE.MeshLambertMaterial({color:0x150f04}));
   ce.rotation.x=Math.PI/2; ce.position.y=15; room.add(ce);
 
-  room.add(new THREE.AmbientLight(0xffe0a0,0.4));
+  room.add(new THREE.AmbientLight(0xffe0a0,0.7));
   var pl=new THREE.PointLight(0xffd070,0.9,42); pl.position.set(0,10,4); room.add(pl);
   for(var i=0;i<8;i++){
     var a=(i/8)*Math.PI*2;
@@ -3459,7 +3562,7 @@ function climbStairs(target){
 function openLift(id){
   activeLift = id||0;
   currentAgent="LIFT ATTENDANT";
-  setPanel("ELECTRIC LIFT "+(activeLift+1),"ROYAL MECHANICA HOIST CO.","#c9a53f",false);
+  setPanel("ELECTRIC LIFT","ROYAL MECHANICA HOIST CO.","#c9a53f",false);
   pLog.innerHTML="";
   log("sys","The brass call plate is lit.");
   log("a","Which floor, sir?");
@@ -3565,6 +3668,7 @@ function pick(x,y){
   else if(ud.legend) legendPanel();
   else if(ud.vip) vipPanel(ud.vip);
   else if(ud.market) marketPanel();
+  else if(ud.holdings) holdingsPanel();
 
   else if(ud.game) openGame(ud.game);
   else if(ud.dancer) dancerMessage(ud.dancer);
@@ -3641,6 +3745,32 @@ function bindStick(){
   });
 }
 
+function collectLights(){
+  ALL_LIGHTS=[];
+  scene.traverse(function(o){
+    if(o.isPointLight){ ALL_LIGHTS.push(o); o.visible=false; }
+  });
+  cullLights();
+}
+
+var _lv=new THREE.Vector3();
+function cullLights(){
+  if(!ALL_LIGHTS.length) return;
+  var cam=camera.position;
+  var scored=[];
+  for(var i=0;i<ALL_LIGHTS.length;i++){
+    var L=ALL_LIGHTS[i];
+    L.getWorldPosition(_lv);
+    var dx=_lv.x-cam.x, dy=_lv.y-cam.y, dz=_lv.z-cam.z;
+    scored.push({ l:L, d:dx*dx+dy*dy+dz*dz });
+  }
+  scored.sort(function(a,b){ return a.d-b.d; });
+  var n=Math.min(LIGHT_BUDGET, scored.length);
+  for(var k=0;k<scored.length;k++){
+    scored[k].l.visible = k<n;
+  }
+}
+
 var clk=new THREE.Clock();
 function animate(){
   requestAnimationFrame(animate);
@@ -3700,6 +3830,7 @@ function animate(){
       d.arms[1].rotation.z=-1.1-Math.sin(el*3.4+d.phase)*1.1;
     });
   }
+  if((++lightTick % 20)===0) cullLights();
   stepTween(); applyCam();
   renderer.render(scene,camera);
 }
@@ -3910,7 +4041,7 @@ function renderReceipt(r){
   g.stroke();
   g.fillStyle="#6e5c28"; g.font=PX(10); g.fillText("VAULT MANAGER",70,818);
   g.textAlign="center"; g.fillStyle="#9a8a5c"; g.font=PX(9);
-  g.fillText("MECHANICA.FUN  -  KEEP THIS RECEIPT",W/2,852);
+  g.fillText("ROYALMECHANICA.XYZ  -  KEEP THIS RECEIPT",W/2,852);
 }
 document.getElementById("rcClose").onclick=function(){
   document.getElementById("rcpt").classList.remove("on");
@@ -3927,7 +4058,7 @@ document.getElementById("rcX").onclick=function(){
     ") in the vault for "+r.term+" and claimed "+r.reward+". #RoyalMechanica"
     :"Royal Mechanica Exchange Hall #RoyalMechanica";
   window.open("https://twitter.com/intent/tweet?text="+encodeURIComponent(txt)+
-    "&url="+encodeURIComponent("https://mechanica.fun/Staking"),"_blank");
+    "&url="+encodeURIComponent("https://royalmechanica.xyz/staking"),"_blank");
 };
 
 var entry=document.getElementById("entry");
@@ -4130,6 +4261,13 @@ function ico(slug, domain){
 }
 
 var OPENSEA_COLLECTION = "https://opensea.io/collection/theroyalmechanica";
+var CAT_MAP = "9325131115341444002035400335400534155443040515205335304301333435232353051502433203341543304440442102425234555320233100031043411111324343353350542510500430502415342442530221013220133110335334203415122544101110552044250312413015534543054252425544145054251354021222104214344240253003035322025502450344104433411414151525135552312525545020014453245025221402030245350323211035453424010143004334504311441335245355521405211513033330125414410355041245142015342514455402504312530111121400521355142540002134124100344121533311504324343540212124045515011245410011001254252344335204000250551531244131435130534233420254120303153321033431042410341424511145412520432511541142005342511305343223350545125121114231103415442021254152352141022114133002352550234244435245052015345135512200024513341034014535322215251104231305352002235253412232435044322252303212032315530033003521243405513012113324100351530013233014211051320015423252541323225250332034333433253320344355323254343523230122355224235242555121210350551214104522245534313055050320523023230302200400524011242010051425414521451514532522445420005432131432440020212534223302531303023313524530115021153031022444452521501315034004444120533551511321140450113042554022004012231203355432110022205230140153003325234033321122211153410535044353313140203442422135252453315230454131311130241545301051555355553345115224045055201542321004322530243425114014151421202154401252234532551214021021232123511113021415553442532144025040502240410104520035453154030515314450451433423440252444425410012500053115155322150513351153403045344032152404500132042115052311140132532004415451141343302420012532544520510402415103340542221040024424525242440043321334440020134431335331453045225130425140045315220340234350313221503115512130551400322523400101032531515534213140222103503511000551400114113040404325141054255001112002304045115312402452424114420030245432320142401552021551241214112552425324432504131402454130450104241002513142350440401404410402130135151441011533455432521043131100320133515421113042405054114445324555105054411115055152143355332141555513113334243010524011222424403311152541324314343242150550031332210014502023503220432440230243334232331510243540453401333221041042203043253333552420533045501310151213023354521521220242555012402034420552024200212234002030524052404502404324200514554424141251041221524520234542430233325202035514554553005501302024400053400152024230130034413254113413240355110504033241520024545155443245024441040025005513254520352435045325512114351022104110254010410230213323051422015010042551114444401432503213315354424554421513032150500242342304220250455310024503101205020314214511203452045254012301020241123231342412150151223345015541220342311411301400240121553402322133541221343133315354044554035110412143414201025051054400240100320221225415232423310434030523545040205501501532243344410235415502340234010141232400301521423355131302022245233333442114403452102002020501055010153414553240213053041201550543151120315454325004253343241150105055211224424143215535511200031225305230114451113221245502404335115043310550150542254020555211524120555252254041041552111011212532332132042043444143223320515343525414445341123002102245532232011521315043410154320151351102013503244452040322430153201012525542500134503331131055122413131540533225302415201554011305200300133533122440341045504303522112050521140053133424021133041115435055535552135235512250441242124234215514545003201421241504301232513041255400445255143415542100312123400024011305351345323425032124351252334323005555235431245123550120341451010034150133310130030241221233355415325422243331533201120215412505355324020434400043551412305200342020343004415115352412003415244051323152013221320123322344200231550505523540142053343032011341334330553303401200310132043225514322510013003343342513304451440354400421220245254432134502350210345233101513102535045330510404141220325143110450050455033315032105231453200515154023214440433133104430521552341102545511002233520343530400301224400410353423210143152440214351431303353415512310542505415125251143440335434332521324305145420051431534444340225443534124544401102014023342555001521003032032313330455252050502202011050420321124001544103331021010453214143345533411523321432214445105405315134544321421015350054033142104333";
+function catFromMetadata(id){
+  if(!(id>=0) || id>=CAT_MAP.length) return -1;
+  var c=CAT_MAP.charCodeAt(id)-48;
+  return (c>=0 && c<=5) ? c : -1;
+}
+
 
 var WALLET_LIST = [
   { id:"metamask", name:"MetaMask", rdns:"io.metamask", brand:"#f6851b",
@@ -4564,19 +4702,29 @@ function loadOwnedTokens(){
   return alchemyNfts(addr).catch(function(){
     return ownedByEnumeration(addr);
   }).then(function(ids){
-    if(!ids.length) return { byCat:{}, ids:[] };
-    return readCall(W3.readIface,STAKING_ADDRESS,"categoriesOfBatch",[ids]).then(function(res){
-      var cats=res[0];
-      var byCat={};
-      ids.forEach(function(id,i){
-        var c=Number(cats[i]);
-        if(c<0) return;
-        if(!byCat[c]) byCat[c]=[];
-        byCat[c].push(id);
-      });
-      return { byCat:byCat, ids:ids };
+    ids=(ids||[]).filter(function(x){ return typeof x==="number" && x>0; });
+    W3.ownedIds=ids;
+    if(!ids.length) return { byCat:{}, ids:[], unknown:[] };
+    var byCat={}, unknown=[];
+    ids.forEach(function(id){
+      var c=catFromMetadata(id);
+      if(c<0){ unknown.push(id); return; }
+      if(!byCat[c]) byCat[c]=[];
+      byCat[c].push(id);
     });
-  });
+    if(!unknown.length) return { byCat:byCat, ids:ids, unknown:[] };
+    return readCall(W3.readIface,STAKING_ADDRESS,"categoriesOfBatch",[unknown])
+      .then(function(res){
+        var cats=res[0];
+        unknown.forEach(function(id,i){
+          var c=Number(cats[i]);
+          if(c<0) return;
+          if(!byCat[c]) byCat[c]=[];
+          byCat[c].push(id);
+        });
+        return { byCat:byCat, ids:ids, unknown:[] };
+      }).catch(function(){ return { byCat:byCat, ids:ids, unknown:unknown }; });
+  }).catch(function(){ return { byCat:{}, ids:[], unknown:[] }; });
 }
 
 function refreshChainState(){
@@ -4595,19 +4743,15 @@ function refreshChainState(){
     W3.approved=r[3][0];
     W3.myTokens=r[4].byCat;
     W3.lastRefresh=Date.now();
+    var m={};
     W3.stakedByCat={};
-    if(W3.myStaked.length){
-      readCall(W3.readIface,STAKING_ADDRESS,"categoriesOfBatch",[W3.myStaked])
-        .then(function(cr){
-          var cats=cr[0];
-          var m={};
-          cats.forEach(function(c){
-            var n=Number(c);
-            if(n>=0) m[n]=(m[n]||0)+1;
-          });
-          W3.stakedByCat=m;
-        }).catch(function(){});
-    }
+    W3.stakedCats={};
+    W3.myStaked.forEach(function(id){
+      var c=catFromMetadata(id);
+      if(c>=0){ m[c]=(m[c]||0)+1; W3.stakedCats[id]=c; }
+    });
+    W3.stakedByCat=m;
+    updateHoldingsBoard();
   }).catch(function(e){
     console.log("state refresh failed",e);
   });
@@ -4627,7 +4771,7 @@ function refreshTreasury(){
       TREASURY.daily=full*DAILY_SHARE_TO_HOLDERS;
     }
     if(r[1]!==null) TREASURY.growth=parseFloat(E.utils.formatEther(E.BigNumber.from(r[1])));
-    if(r[2]!==null) TREASURY.reserve=parseFloat(E.utils.formatEther(E.BigNumber.from(r[2])));
+    TREASURY.reserve=13.08;
     if(typeof drawVIP==="function") drawVIP();
   }).catch(function(){});
 }
@@ -4653,6 +4797,7 @@ function connectWith(announced){
 
     closeWalletModal();
     updateButton();
+    updateHoldingsBoard();
     toast("WALLET CONNECTED  "+short(W3.address),"ok");
 
     return ensureNetwork(prov).then(function(){
@@ -4705,7 +4850,8 @@ function ensureNetwork(prov){
 }
 
 function disconnect(){
-  W3.address=null; W3.signer=null; W3.staking=null; W3.nft=null;
+  W3.address=null;
+  setTimeout(function(){ updateHoldingsBoard(); },50); W3.signer=null; W3.staking=null; W3.nft=null;
   W3.myTokens={}; W3.myStaked=[]; W3.approved=false;
   updateButton();
   toast("WALLET DISCONNECTED");
@@ -4772,22 +4918,80 @@ function txError(e){
   if(m.indexOf("NO_REWARDS_IN_RESERVE")>=0) m="The reward reserve is empty right now.";
   if(m.indexOf("ALREADY_STAKED")>=0) m="That certificate is already in the vault.";
   if(m.indexOf("NOT_TOKEN_OWNER")>=0) m="That token is not in this wallet.";
+  if(m.indexOf("WEEKEND_CLOSED")>=0) m="The market is shut for the weekend. Deposits reopen on Monday.";
+  if(m.indexOf("STAKING_PAUSED")>=0) m="Deposits are paused by the house right now.";
+  if(m.indexOf("UNSTAKING_PAUSED")>=0) m="Releases are paused by the house right now.";
+  if(m.indexOf("CLAIMING_PAUSED")>=0) m="Claims are paused by the house right now.";
+  if(m.indexOf("CONTRACT_PAUSED")>=0) m="The vault is closed by the house right now.";
+  if(m.indexOf("insufficient funds")>=0) m="Not enough ETH in the wallet for the 0.0005 fee and gas.";
+  if(m.indexOf("nonce")>=0) m="A previous transaction is still pending. Wait for it, then try again.";
+  if(m.indexOf("replacement")>=0) m="A previous transaction is still pending. Wait for it, then try again.";
   if(m.length>160) m=m.slice(0,160)+"...";
   return m;
+}
+
+function withGas(contract, method, args, overrides){
+  var ov=overrides||{};
+  return contract.estimateGas[method].apply(null, args.concat([ov]))
+    .then(function(est){
+      var bumped=est.mul(140).div(100);
+      var o={};
+      for(var k in ov) o[k]=ov[k];
+      o.gasLimit=bumped;
+      return contract[method].apply(null, args.concat([o]));
+    })
+    .catch(function(err){
+      var msg=(err && (err.message||"")) + ((err&&err.data&&err.data.message)||"");
+      if(/revert|execution reverted|CATEGORY_NOT_SET|MARKET_CLOSED|ALREADY_STAKED|STILL_LOCKED|NOT_TOKEN_OWNER|FEE_TOO_LOW|NOTHING_TO_CLAIM|PAUSED/i.test(msg)){
+        throw err;
+      }
+      var o2={};
+      for(var k2 in ov) o2[k2]=ov[k2];
+      o2.gasLimit=W3.ethers.BigNumber.from(600000);
+      return contract[method].apply(null, args.concat([o2]));
+    });
+}
+
+function waitFor(tx, label){
+  toast(label+" SENT - WAITING FOR THE CHAIN",null,0);
+  return tx.wait(1).then(function(rc){
+    if(rc && rc.status === 0) throw new Error("The chain rejected this transaction.");
+    return { hash:tx.hash, rc:rc };
+  });
 }
 
 function doApprove(){
   if(needWallet()) return Promise.reject();
   toast("CONFIRM THE APPROVAL IN YOUR WALLET",null,0);
-  return W3.nft.setApprovalForAll(STAKING_ADDRESS,true).then(function(tx){
-    toast("APPROVAL SENT - WAITING",null,0);
-    return tx.wait();
-  }).then(function(){
-    W3.approved=true;
-    toast("VAULT APPROVED","ok");
-  }).catch(function(e){
-    toast(txError(e),"err",6000);
-    throw e;
+  return withGas(W3.nft,"setApprovalForAll",[STAKING_ADDRESS,true],{})
+    .then(function(tx){ return waitFor(tx,"APPROVAL"); })
+    .then(function(){
+      W3.approved=true;
+      toast("VAULT APPROVED","ok");
+    }).catch(function(e){
+      toast(txError(e),"err",6000);
+      throw e;
+    });
+}
+
+function preflightStake(tokenId){
+  return Promise.all([
+    readCall(W3.readIface,STAKING_ADDRESS,"canStakeNow",[]).catch(function(){ return null; }),
+    readCall(W3.readIface,STAKING_ADDRESS,"categoryOrDefault",[tokenId]).catch(function(){ return null; }),
+    readCall(W3.nftIface,NFT_ADDRESS,"ownerOf",[tokenId]).catch(function(){ return null; })
+  ]).then(function(r){
+    if(r[0] && r[0][0]===false){
+      return { ok:false, why:r[0][1] };
+    }
+    if(r[1] && Number(r[1][0])<0){
+      return { ok:false, why:"CATEGORY_NOT_SET" };
+    }
+    var owner=r[2] && r[2][0] ? String(r[2][0]) : "";
+    if(owner && owner!=="0x0000000000000000000000000000000000000000"
+       && owner.toLowerCase()!==W3.address.toLowerCase()){
+      return { ok:false, why:"NOT_TOKEN_OWNER" };
+    }
+    return { ok:true };
   });
 }
 
@@ -4797,16 +5001,18 @@ function doStake(tokenId, idx){
   buttons([]);
   log("sys","Preparing certificate #"+tokenId+" for the counter.");
 
-  var chain = W3.approved ? Promise.resolve() : doApprove();
-
-  chain.then(function(){
+  preflightStake(tokenId).then(function(pf){
+    if(!pf.ok){
+      throw new Error(pf.why);
+    }
+    return W3.approved ? Promise.resolve() : doApprove();
+  }).then(function(){
     var fee = W3.depositFee || W3.ethers.utils.parseEther("0.0005");
     toast("CONFIRM THE DEPOSIT IN YOUR WALLET",null,0);
-    return W3.staking.stake(tokenId,{value:fee});
+    return withGas(W3.staking,"stake",[tokenId],{value:fee});
   }).then(function(tx){
-    toast("DEPOSIT SENT - WAITING FOR THE CHAIN",null,0);
     log("sys","Transaction sent. Waiting for confirmation.");
-    return tx.wait();
+    return waitFor(tx,"DEPOSIT");
   }).then(function(){
     toast("NFT LODGED IN THE VAULT","ok");
     log("a","Received and lodged. Certificate #"+tokenId+" is in the vault.");
@@ -5052,9 +5258,8 @@ function claimBarLive(idx, tokenId, human){
   if(needWallet()) return;
   buttons([]);
   toast("CONFIRM THE CLAIM IN YOUR WALLET",null,0);
-  W3.staking.claimRewards(idx).then(function(tx){
-    toast("CLAIM SENT - WAITING",null,0);
-    return tx.wait().then(function(rc){ return { hash:tx.hash, rc:rc }; });
+  withGas(W3.staking,"claimRewards",[idx],{}).then(function(tx){
+    return waitFor(tx,"CLAIM");
   }).then(function(res){
     if(typeof sndCoin==="function") sndCoin();
     toast("REWARD SENT TO YOUR WALLET","ok");
@@ -5186,9 +5391,8 @@ function doClaim(cat){
   }
   buttons([]);
   toast("CONFIRM THE CLAIM IN YOUR WALLET",null,0);
-  W3.staking.claimRewards(cat).then(function(tx){
-    toast("CLAIM SENT - WAITING",null,0);
-    return tx.wait();
+  withGas(W3.staking,"claimRewards",[cat],{}).then(function(tx){
+    return waitFor(tx,"CLAIM");
   }).then(function(){
     toast("REWARD SENT TO YOUR WALLET","ok");
     log("sys","Reward paid out.");
@@ -5214,9 +5418,8 @@ function doClaimAll(){
   }
   buttons([]);
   toast("CONFIRM THE CLAIM IN YOUR WALLET",null,0);
-  W3.staking.claimAllRewards().then(function(tx){
-    toast("CLAIM SENT - WAITING",null,0);
-    return tx.wait();
+  withGas(W3.staking,"claimAllRewards",[],{}).then(function(tx){
+    return waitFor(tx,"CLAIM");
   }).then(function(){
     toast("ALL REWARDS SENT","ok");
     return refreshChainState();
@@ -5229,9 +5432,8 @@ function doUnstake(tokenId, idx){
   buttons([]);
   log("sys","Signing for the release of certificate #"+tokenId+".");
   toast("CONFIRM THE RELEASE IN YOUR WALLET",null,0);
-  W3.staking.unstake(tokenId).then(function(tx){
-    toast("RELEASE SENT - WAITING",null,0);
-    return tx.wait();
+  withGas(W3.staking,"unstake",[tokenId],{}).then(function(tx){
+    return waitFor(tx,"RELEASE");
   }).then(function(){
     sndStamp();
     toast("NFT RETURNED TO YOUR WALLET","ok");
@@ -5249,9 +5451,8 @@ function doRenew(tokenId){
   if(needWallet()) return;
   buttons([]);
   toast("CONFIRM THE RENEWAL IN YOUR WALLET",null,0);
-  W3.staking.renew(tokenId).then(function(tx){
-    toast("RENEWAL SENT - WAITING",null,0);
-    return tx.wait();
+  withGas(W3.staking,"renew",[tokenId],{}).then(function(tx){
+    return waitFor(tx,"RENEWAL");
   }).then(function(){
     toast("TERM RENEWED - REWARD CREDITED","ok");
     log("a","Renewed for another term, and your reward has been credited.");
@@ -5330,7 +5531,10 @@ function liveUnstakeList(idx){
     return readCall(W3.readIface,STAKING_ADDRESS,"stakeDetails",[id]).then(function(r){
       return { id:id, cat:Number(r[1]), start:Number(r[2]), unlock:Number(r[3]),
                terms:Number(r[4]), active:r[6], unlockable:r[7] };
-    }).catch(function(){ return null; });
+    }).catch(function(){
+      var c=catFromMetadata(id);
+      return c<0?null:{ id:id, cat:c, start:0, unlock:0, terms:1, active:true, unlockable:false };
+    });
   })).then(function(rows){
     var here=rows.filter(function(r){ return r && r.cat===idx; });
     if(!here.length){
@@ -5377,7 +5581,10 @@ function liveVaultPanel(){
     return readCall(W3.readIface,STAKING_ADDRESS,"stakeDetails",[id]).then(function(r){
       return { id:id, cat:Number(r[1]), start:Number(r[2]), unlock:Number(r[3]),
                terms:Number(r[4]), active:r[6], unlockable:r[7] };
-    }).catch(function(){ return null; });
+    }).catch(function(){
+      var c=catFromMetadata(id);
+      return c<0?null:{ id:id, cat:c, start:0, unlock:0, terms:1, active:true, unlockable:false };
+    });
   })).then(function(rows){
     rows=rows.filter(Boolean);
     log("a","The vault holds "+rows.length+" certificate"+(rows.length===1?"":"s")+" for you.");
@@ -5534,6 +5741,64 @@ function revealMarketArt(force){
   }).catch(function(){ return false; });
 }
 
+function updateHoldingsBoard(){
+  if(typeof drawHoldingsBoard!=="function") return;
+  if(!W3.address){ drawHoldingsBoard(null); return; }
+  drawHoldingsBoard({ byCat:W3.myTokens||{}, stakedByCat:W3.stakedByCat||{} });
+}
+
+function holdingsPanel(){
+  window.currentAgent="COLLECTION DESK";
+  setPanel("YOUR COLLECTION","WHAT YOU HOLD AND WHERE IT GOES","#8fb4d6",false);
+  document.getElementById("pLog").innerHTML="";
+  if(!W3.address){
+    log("a","Connect a wallet and every Royal Mechanica NFT you hold will be listed here with the counter it belongs to.");
+    buttons([
+      {label:"CONNECT WALLET",gold:true,big:true,fn:openWalletModal},
+      {label:"BACK",fn:closePanel}
+    ]);
+    return;
+  }
+  var total=0, lines=[];
+  for(var i=0;i<6;i++){
+    var own=(W3.myTokens[i]||[]).length;
+    var st=(W3.stakedByCat&&W3.stakedByCat[i])||0;
+    total+=own;
+    if(own||st) lines.push("$"+SYMS[i]+": "+own+" in wallet, "+st+" in vault");
+  }
+  log("sys","Wallet "+short(W3.address));
+  if(!lines.length){
+    log("a","This wallet holds no Royal Mechanica NFTs yet. Our collection trades on OpenSea.");
+    buttons([
+      {label:"BUY ON OPENSEA",gold:true,big:true,fn:function(){ window.open(OPENSEA_COLLECTION,"_blank"); }},
+      {label:"REFRESH",fn:function(){ refreshChainState().then(holdingsPanel); }},
+      {label:"BACK",fn:closePanel}
+    ]);
+    return;
+  }
+  log("a",lines.join(".  ")+".");
+  log("a","Pick a token below and I will walk you to its counter, ready to deposit.");
+  var btns=[];
+  for(var c=0;c<6;c++){
+    var n=(W3.myTokens[c]||[]).length;
+    if(!n) continue;
+    (function(cat,count){
+      btns.push({label:"$"+SYMS[cat]+"  ("+count+")  GO AND DEPOSIT",gold:true,
+        fn:function(){
+          closePanel();
+          walkToSpot(cat);
+          setTimeout(function(){ liveStakeList(cat); }, 1800);
+        }});
+    })(c,n);
+  }
+  btns.push({label:"REFRESH FROM CHAIN",fn:function(){
+    toast("READING THE CHAIN...");
+    refreshChainState().then(function(){ holdingsPanel(); toast("UPDATED","ok"); });
+  }});
+  btns.push({label:"BACK",fn:closePanel});
+  buttons(btns);
+}
+
 function boot(){
   injectStyles();
   buildUI();
@@ -5545,6 +5810,7 @@ function boot(){
     W3.ready=true;
     patchPanels();
     refreshTreasury();
+    updateHoldingsBoard();
     setTimeout(function(){ revealMarketArt(false); }, 2500);
     setInterval(function(){
       if(W3.address && Date.now()-W3.lastRefresh>45000) refreshChainState();
@@ -5556,6 +5822,9 @@ function boot(){
 }
 
 W3.api = {
+  withGas:withGas, preflightStake:preflightStake, waitFor:waitFor,
+  holdingsPanel:holdingsPanel, updateHoldingsBoard:updateHoldingsBoard,
+  catFromMetadata:catFromMetadata,
   revealMarketArt:revealMarketArt, renderQrSection:renderQrSection, toggleQr:toggleQr,
   liveVaultTheatre:liveVaultTheatre, rewardChamberLive:rewardChamberLive,
   receiptLive:receiptLive, isMobileDevice:isMobileDevice,
