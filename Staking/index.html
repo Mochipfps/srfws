@@ -2746,13 +2746,13 @@ function drawVIP(){
   g1.fillText("HELD FOR GROWTH AND COMMUNITY AIRDROPS",512,400);
   S.reserve.tex.needsUpdate=true;
 
-  var g2=base(S.daily.cv,"DAILY REWARD WALLET","CREATOR FEES");
+  var g2=base(S.daily.cv,"DAILY REWARD WALLET","AVAILABLE FOR TODAY'S PAYOUT");
   g2.fillStyle="#ffd964"; g2.font=PX(60);
   g2.fillText(fmtEth(TREASURY.daily),512,250);
   g2.fillStyle="#4a6a8a"; g2.font=PX(17);
   g2.fillText("TAP FOR DETAILS",512,330);
   g2.fillStyle="#2f5d8a"; g2.font=PX(14);
-  g2.fillText("80% STAKERS   10% DEVELOPMENT   10% MARKETING",512,400);
+  g2.fillText("FUNDED BY CREATOR FEES  -  PAID OUT TO STAKERS DAILY",512,400);
   S.daily.tex.needsUpdate=true;
 
   var g3=base(S.growth.cv,"COMMUNITY GROWTH VAULT","STAKING FEES");
@@ -2805,12 +2805,12 @@ function vipPanel(key){
     log("a","This wallet holds the ETH raised by the Royal Mechanica mint.");
     log("a","It is reserved for two things: carrying the project forward, and funding a substantial airdrop back to the community. Nothing is spent from it on anything else.");
   } else if(key==="daily"){
-    setPanel("DAILY REWARD WALLET","CREATOR FEES","#ffd964",false);
+    setPanel("DAILY REWARD WALLET","AVAILABLE FOR TODAY'S PAYOUT","#ffd964",false);
     pLog.innerHTML="";
-    log("sys","Balance: "+fmtEth(TREASURY.daily));
+    log("sys","Available for today's payout: "+fmtEth(TREASURY.daily));
     log("a","Every creator fee the collection earns is deposited straight into this wallet.");
-    log("a","Once the market opens each day, it pays the holders who have their NFTs in custody for the term.");
-    log("a","The split is fixed: 80 per cent to the stakers, 10 per cent to the developer wallet so the project can keep being built, and 10 per cent to marketing so the collection keeps growing.");
+    log("a","Once the market opens each day, it pays the holders who have their NFTs in custody for the term. The figure above is what is available for today's round.");
+    log("a","The rest of the wallet is held back for development and marketing, so the project can keep being built and the collection keeps growing.");
   } else if(key==="growth"){
     setPanel("COMMUNITY GROWTH VAULT","STAKING FEES","#d8b4ff",false);
     pLog.innerHTML="";
@@ -4196,7 +4196,7 @@ var NFT_ADDRESS = "0x99374499930204E1A7F76299e5e8c71fCd0E3aAc";
 var STAKING_ADDRESS = "0x857ff30731b7fb53DCEC6CbA98cB4025105168ac";
 var DAILY_REWARD_WALLET = "0x79552D844498E2d682058F3D80532d996014E788";
 var GROWTH_VAULT_WALLET = "0x0C0335D9CB8719fc8FB4712809389392f8bCdD00";
-var DAILY_SHARE_TO_HOLDERS = 0.80;
+var DAILY_SHARE_TO_HOLDERS = 0.60;
 var CHAIN_LABEL = "Robinhood Chain";
 
 var RPC_URLS = [
@@ -4351,6 +4351,7 @@ function injectStyles(){
   + '#wcBtn{background:rgba(10,10,14,.92);border:2px solid #f0c14b;color:#ffe27a;'
   + 'font-family:inherit;font-size:7px;padding:10px 11px;letter-spacing:1px;border-radius:3px;cursor:pointer}'
   + '#wcBtn.on{border-color:#3ad07a;color:#3ad07a}'
+  + '#wcBtn.warn{border-color:#ff6677;color:#ff8892}'
   + '#wmOverlay{position:fixed;inset:0;z-index:120;background:rgba(4,4,7,.92);display:none;'
   + 'align-items:center;justify-content:center;padding:18px}'
   + '#wmOverlay.on{display:flex}'
@@ -4829,27 +4830,54 @@ function connectWith(announced){
     W3.staking=new W3.ethers.Contract(STAKING_ADDRESS,STAKING_ABI,W3.signer);
     W3.nft=new W3.ethers.Contract(NFT_ADDRESS,NFT_ABI,W3.signer);
 
-    prov.on && prov.on("accountsChanged",function(a){
-      if(!a.length){ disconnect(); }
-      else { W3.address=a[0]; updateButton(); refreshChainState(); }
-    });
-    prov.on && prov.on("chainChanged",function(){ window.location.reload(); });
+    if(prov.on && !prov.__rmBound){
+      prov.__rmBound=true;
+      prov.on("accountsChanged",function(a){
+        if(!a || !a.length){ disconnect(); return; }
+        W3.address=a[0];
+        rememberWallet(W3.selected);
+        updateButton();
+        refreshChainState().then(updateHoldingsBoard);
+      });
+      prov.on("chainChanged",function(id){
+        W3.chainId=id;
+        W3.provider=new W3.ethers.providers.Web3Provider(prov,"any");
+        W3.signer=W3.provider.getSigner();
+        W3.staking=new W3.ethers.Contract(STAKING_ADDRESS,STAKING_ABI,W3.signer);
+        W3.nft=new W3.ethers.Contract(NFT_ADDRESS,NFT_ABI,W3.signer);
+        updateButton();
+        checkNetworkBadge();
+        refreshChainState().then(updateHoldingsBoard);
+      });
+      prov.on("disconnect",function(){ disconnect(); });
+    }
 
+    rememberWallet(announced);
     closeWalletModal();
     updateButton();
     updateHoldingsBoard();
     toast("WALLET CONNECTED  "+short(W3.address),"ok");
 
-    return ensureNetwork(prov).then(function(){
+    refreshChainState().then(function(){
+      updateHoldingsBoard();
+      updateButton();
+    }).catch(function(){});
+    refreshTreasury();
+
+    ensureNetwork(prov).then(function(){
+      checkNetworkBadge();
       return refreshChainState();
     }).then(function(){
-      refreshTreasury();
-      updateButton();
-    });
+      updateHoldingsBoard();
+    }).catch(function(){});
+
+    return true;
   }).catch(function(e){
     var m=(e && e.message) || "Connection refused";
     if(e && e.code===4001) m="You rejected the connection request.";
+    if(e && e.code===-32002) m="Your wallet is already asking you to connect. Open the wallet and approve it there.";
     walletError(m);
+    toast(m,"err",6000);
   });
 }
 
@@ -4858,16 +4886,40 @@ function walletErrorClear(){
   if(e) e.style.display="none";
 }
 
+function sameChain(a,b){
+  if(!a || !b) return false;
+  try{
+    return W3.ethers.BigNumber.from(a).eq(W3.ethers.BigNumber.from(b));
+  }catch(e){
+    return String(a).toLowerCase()===String(b).toLowerCase();
+  }
+}
+
+function checkNetworkBadge(){
+  var b=document.getElementById("wcBtn");
+  if(!b || !W3.address) return;
+  if(W3.expectedChainId && W3.chainId && !sameChain(W3.chainId,W3.expectedChainId)){
+    b.textContent="WRONG NETWORK";
+    b.classList.remove("on");
+    b.classList.add("warn");
+  } else {
+    b.textContent=short(W3.address);
+    b.classList.add("on");
+    b.classList.remove("warn");
+  }
+}
+
 function ensureNetwork(prov){
   return rpc("eth_chainId",[]).then(function(target){
     W3.expectedChainId=target;
     return prov.request({method:"eth_chainId"}).then(function(current){
       W3.chainId=current;
-      if(current && target && current.toLowerCase()===target.toLowerCase()) return true;
+      if(sameChain(current,target)) return true;
+      toast("SWITCHING TO ROBINHOOD CHAIN",null,0);
       return prov.request({
         method:"wallet_switchEthereumChain",
         params:[{chainId:target}]
-      }).then(function(){ W3.chainId=target; return true; })
+      }).then(function(){ W3.chainId=target; toast("ON ROBINHOOD CHAIN","ok"); return true; })
       .catch(function(err){
         if(err && (err.code===4902 || err.code===-32603)){
           return prov.request({
@@ -4883,13 +4935,52 @@ function ensureNetwork(prov){
         throw err;
       });
     });
-  }).catch(function(){
-    toast("COULD NOT SWITCH NETWORK - SWITCH TO ROBINHOOD CHAIN MANUALLY","err",6000);
+  }).catch(function(e){
+    if(e && e.code===4001){
+      toast("STAY ON ROBINHOOD CHAIN TO STAKE","err",6000);
+    } else {
+      toast("SWITCH YOUR WALLET TO ROBINHOOD CHAIN TO STAKE","err",6000);
+    }
+    checkNetworkBadge();
     return false;
   });
 }
 
+function rememberWallet(announced){
+  try{
+    localStorage.setItem("rm_wallet", announced && announced.info ? (announced.info.rdns||announced.info.name||"") : "");
+  }catch(e){}
+}
+
+function forgetWallet(){
+  try{ localStorage.removeItem("rm_wallet"); }catch(e){}
+}
+
+function autoReconnect(){
+  var want=null;
+  try{ want=localStorage.getItem("rm_wallet"); }catch(e){}
+  if(!want) return;
+  var tries=0;
+  function look(){
+    tries++;
+    var match=W3.providers.filter(function(p){
+      return (p.info.rdns||"")===want || (p.info.name||"")===want;
+    })[0];
+    if(!match){
+      if(tries<8){ setTimeout(look,400); }
+      return;
+    }
+    match.provider.request({method:"eth_accounts"}).then(function(accts){
+      if(accts && accts.length){
+        connectWith(match);
+      }
+    }).catch(function(){});
+  }
+  setTimeout(look,500);
+}
+
 function disconnect(){
+  forgetWallet();
   W3.address=null;
   setTimeout(function(){ updateHoldingsBoard(); },50); W3.signer=null; W3.staking=null; W3.nft=null;
   W3.myTokens={}; W3.myStaked=[]; W3.approved=false;
@@ -4901,11 +4992,16 @@ function updateButton(){
   var b=document.getElementById("wcBtn");
   if(!b) return;
   if(W3.address){
-    b.textContent=short(W3.address);
-    b.classList.add("on");
+    b.classList.remove("warn");
+    checkNetworkBadge();
+    if(!b.classList.contains("warn")){
+      b.textContent=short(W3.address);
+      b.classList.add("on");
+    }
   } else {
     b.textContent="CONNECT WALLET";
     b.classList.remove("on");
+    b.classList.remove("warn");
   }
 }
 
@@ -5929,6 +6025,7 @@ function boot(){
     patchPanels();
     refreshTreasury();
     updateHoldingsBoard();
+    autoReconnect();
     setTimeout(function(){ revealMarketArt(false); }, 2500);
     setInterval(function(){
       if(W3.address && Date.now()-W3.lastRefresh>45000) refreshChainState();
@@ -5940,6 +6037,7 @@ function boot(){
 }
 
 W3.api = {
+  autoReconnect:autoReconnect, checkNetworkBadge:checkNetworkBadge, sameChain:sameChain,
   lookupPanel:lookupPanel, handleLookup:handleLookup,
   symbolOfToken:symbolOfToken, mismatchReport:mismatchReport,
   verifyChainCategories:verifyChainCategories, noteMismatch:noteMismatch,
