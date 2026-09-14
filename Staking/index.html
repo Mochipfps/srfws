@@ -5537,12 +5537,10 @@ function txError(e){
   if(m.indexOf("TERM_NOT_FINISHED")>=0) m="The term has not finished yet.";
   if(m.indexOf("NOTHING_TO_CLAIM")>=0) m="There is nothing to claim.";
   if(m.indexOf("NOTHING_DUE_YET")>=0) m="The reward opens ten minutes before the 24 hours are up. It is not open yet.";
-  if(m.indexOf("COLLECTION_REFUSED")>=0)
-    m="The collection refused to release this NFT to the vault.";
   if(m.indexOf("WRONG_NETWORK")>=0)
     m="Your wallet is not on Robinhood Chain. Switch it there and try again. Nothing was sent.";
   if(m.indexOf("WALLET_NOT_CONNECTED")>=0) m="Connect your wallet first.";
-  if(m.indexOf("TRANSFER_BLOCKED")>=0) m="The collection refused to release the NFT to the vault. A transfer guard is blocking it.";
+  if(m.indexOf("TRANSFER_BLOCKED")>=0) m="The certificate did not reach the vault. Approve the vault again, then retry.";
   if(/not token owner or approved|transfer caller is not owner/i.test(m))
     m="The vault is not approved to move this NFT yet. Approve it once and try again.";
   if(/^\s*(execution reverted|REVERTED)\.?\s*$/i.test(m))
@@ -5721,7 +5719,7 @@ function diagnoseStake(tokenId){
     }
     if(sim){
       if(sim.indexOf("TRANSFER_BLOCKED")>=0)
-        return "The collection refused to release the NFT to the vault. A transfer guard on the contract is blocking it.";
+        return "The vault pulled the certificate but the collection did not hand it over. Approve the vault again, then retry.";
       if(sim.indexOf("ALREADY_STAKED")>=0) return "That certificate is already inside the vault.";
       if(sim.indexOf("CATEGORY_NOT_SET")>=0) return "The vault has no counter recorded for #"+tokenId+".";
       if(sim.indexOf("MARKET_CLOSED_TODAY")>=0) return "The vault only takes deposits Monday to Friday.";
@@ -5911,18 +5909,19 @@ function doStake(tokenId, idx){
   }).then(function(){
     return simulateStake(tokenId).then(function(reason){
       if(!reason) return null;
-      if(reason==="REVERTED"){
-        return approvalState(tokenId).then(function(appr){
-          if(appr && appr.all===false && appr.one===false){
-            throw new Error("APPROVAL_MISSING");
-          }
-          return simulateNftPull(tokenId).then(function(pull){
-            if(pull) throw new Error("COLLECTION_REFUSED::"+pull);
-            throw new Error("REVERTED");
-          });
-        });
-      }
-      throw new Error(reason);
+
+      var NAMED=["CATEGORY_NOT_SET","MARKET_CLOSED_TODAY","ALREADY_STAKED",
+        "NOT_TOKEN_OWNER","FEE_TOO_LOW","TRANSFER_BLOCKED","STAKING_PAUSED",
+        "CONTRACT_PAUSED","UNSTAKING_PAUSED","CLAIMING_PAUSED","REENTRANT"];
+      if(NAMED.indexOf(reason)>=0) throw new Error(reason);
+
+      return approvalState(tokenId).then(function(appr){
+        if(appr && appr.all===false && appr.one===false){
+          throw new Error("APPROVAL_MISSING");
+        }
+        log("sys","The dry run was not conclusive. Sending it to the chain for real.");
+        return null;
+      });
     });
   }).then(function(){
     var fee = W3.depositFee || W3.ethers.utils.parseEther("0.0005");
@@ -5945,44 +5944,17 @@ function doStake(tokenId, idx){
     log("sys","The deposit did not go through. Checking with the vault...");
     var raw=(e && e.message) || "";
     if(raw==="APPROVAL_MISSING"){ offerApproval(tokenId, idx); return; }
-    if(raw.indexOf("COLLECTION_REFUSED::")===0){
-      var why=raw.split("::")[1];
-      log("a","The collection refused to hand certificate #"+tokenId+" to the vault.");
-      log("sys","The NFT contract reported: "+why);
-      log("a","Your approval is in place, so this is a transfer rule on the collection itself.");
-      buttons([
-        {label:"APPROVE ONLY #"+tokenId,gold:true,big:true,fn:function(){ approveOne(tokenId, idx); }},
-        {label:"TRY AGAIN",fn:function(){ doStake(tokenId, idx); }},
-        {label:"BACK",fn:function(){ counterButtons(idx); }}
-      ]);
-      return;
-    }
 
-    Promise.all([approvalState(tokenId), simulateNftPull(tokenId)])
-      .then(function(pair){
-        var appr=pair[0], pull=pair[1];
-        if(appr && appr.all===false && appr.one===false){
-          offerApproval(tokenId, idx);
-          return true;
-        }
-        if(pull){
-          log("a","The collection refused to hand certificate #"+tokenId+" to the vault.");
-          log("sys","The NFT contract reported: "+pull);
-          if(appr && (appr.all || appr.one)){
-            log("a","Your approval is in place, so this is a transfer rule on the collection itself, not anything you can fix from here.");
-          }
-          buttons([
-            {label:"APPROVE ONLY #"+tokenId,gold:true,big:true,fn:function(){ approveOne(tokenId, idx); }},
-            {label:"TRY AGAIN",fn:function(){ doStake(tokenId, idx); }},
-            {label:"BACK",fn:function(){ counterButtons(idx); }}
-          ]);
-          return true;
-        }
-        return false;
-      }).then(function(handled){
-        if(handled) return;
-        return deepDiagnose(tokenId, idx, raw);
-      });
+    approvalState(tokenId).then(function(appr){
+      if(appr && appr.all===false && appr.one===false){
+        offerApproval(tokenId, idx);
+        return true;
+      }
+      return false;
+    }).then(function(handled){
+      if(handled) return;
+      return deepDiagnose(tokenId, idx, raw);
+    });
     return;
   });
 }
@@ -6002,8 +5974,10 @@ function deepDiagnose(tokenId, idx, raw){
       }
       if(reason){ log("a",reason); toast(reason,"err",7000); }
       else { log("a","The vault gave no reason. Try once more in a moment, and if it happens again send me the certificate number."); }
-      if(W3.lastRevertRaw){
-        log("sys","Raw chain message: "+String(W3.lastRevertRaw).slice(0,140));
+      if(raw && !/^(REVERTED|APPROVAL_MISSING)$/.test(raw)){
+        log("sys","Chain message: "+String(raw).slice(0,160));
+      } else if(W3.lastRevertRaw){
+        log("sys","Chain message: "+String(W3.lastRevertRaw).slice(0,160));
       }
       buttons([
         {label:"TRY AGAIN",gold:true,big:true,fn:function(){ doStake(tokenId, idx); }},
