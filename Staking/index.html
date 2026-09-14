@@ -4384,7 +4384,7 @@ else addEventListener("load",boot);
 (function () {
 
 var NFT_ADDRESS = "0x99374499930204E1A7F76299e5e8c71fCd0E3aAc";
-var STAKING_ADDRESS = "0xF3A9898d186101ce1bc1451e346ff754934fc406";
+var STAKING_ADDRESS = "0x3d835427150Ff410C50E7EC9C3E0658824275333";
 var DAILY_REWARD_WALLET = "0x79552D844498E2d682058F3D80532d996014E788";
 var GROWTH_VAULT_WALLET = "0x0C0335D9CB8719fc8FB4712809389392f8bCdD00";
 var DAILY_SHARE_TO_HOLDERS = 0.80;
@@ -4449,7 +4449,7 @@ var RPC_URLS = [
 "https://robinhood-mainnet.g.alchemy.com/v2/alch_K4Vbypoy3LGK2zT3TBbKa"
 ];
 
-var STAKING_ABI = [{"inputs":[],"name":"claimAllRewards","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"claimForToken","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"}],"name":"claimForTokens","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint8","name":"category","type":"uint8"}],"name":"claimRewards","outputs":[],"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"staker","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint8","name":"category","type":"uint8"},{"indexed":false,"internalType":"uint256","name":"cycles","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"CycleClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"staker","type":"address"},{"indexed":true,"internalType":"uint8","name":"category","type":"uint8"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RewardClaimed","type":"event"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"stake","outputs":[],"stateMutability":"payable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"staker","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint8","name":"category","type":"uint8"},{"indexed":false,"internalType":"uint256","name":"unlockTime","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"fee","type":"uint256"}],"name":"Staked","type":"event"},{"inputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"}],"name":"stakeMany","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"unstake","outputs":[],"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"staker","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint8","name":"category","type":"uint8"}],"name":"Unstaked","type":"event"},{"inputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"}],"name":"unstakeMany","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"allReservedRewards","outputs":[{"internalType":"uint256[6]","name":"balances","type":"uint256[6]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"canStakeNow","outputs":[{"internalType":"bool","name":"allowed","type":"bool"},{"internalType":"string","name":"reason","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"}],"name":"categoriesOfBatch","outputs":[{"internalType":"int16[]","name":"result","type":"int16[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"categoryOrDefault","outputs":[{"internalType":"int16","name":"","type":"int16"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint8","name":"category","type":"uint8"}],"name":"categorySymbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"CLAIM_LEAD","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"claimingPaused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"startUtc","type":"uint256"}],"name":"computeUnlockTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"contractPaused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"cyclesDue","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"depositFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"isMarketOpenNow","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"isTradingDayNow","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"marketStatus","outputs":[{"internalType":"uint256","name":"utcNow","type":"uint256"},{"internalType":"uint256","name":"etNow","type":"uint256"},{"internalType":"uint256","name":"weekday","type":"uint256"},{"internalType":"bool","name":"tradingDay","type":"bool"},{"internalType":"bool","name":"marketOpen","type":"bool"},{"internalType":"bool","name":"daylightSaving","type":"bool"},{"internalType":"uint256","name":"opensAt","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"nextClaimTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"nftCollection","outputs":[{"internalType":"contract IERC721","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint8","name":"","type":"uint8"}],"name":"pendingRewards","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"pendingRewardsOf","outputs":[{"internalType":"uint256[6]","name":"amounts","type":"uint256[6]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"count","type":"uint256"}],"name":"quoteStake","outputs":[{"internalType":"uint256","name":"feeRequired","type":"uint256"},{"internalType":"uint256","name":"unlockTime","type":"uint256"},{"internalType":"bool","name":"weekendLock","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint8","name":"category","type":"uint8"}],"name":"reservedRewards","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"rewardPerTerm","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"rewardTokens","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"stakedCountOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"stakeDetails","outputs":[{"internalType":"address","name":"staker","type":"address"},{"internalType":"uint8","name":"category","type":"uint8"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"unlockTime","type":"uint256"},{"internalType":"uint256","name":"cyclesClaimed","type":"uint256"},{"internalType":"uint256","name":"claimable","type":"uint256"},{"internalType":"uint256","name":"claimOpensAt","type":"uint256"},{"internalType":"bool","name":"active","type":"bool"},{"internalType":"bool","name":"unlockable","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"stakedPerCategory","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"stakedTokensOf","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"stakingPaused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"TERM","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalFeesCollected","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"totalRewardsPaid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalStaked","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"unstakingPaused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}];
+var STAKING_ABI = [{"inputs":[],"name":"buyCredits","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"claimAllRewards","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"claimForToken","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"}],"name":"claimForTokens","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint8","name":"category","type":"uint8"}],"name":"claimRewards","outputs":[],"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"buyer","type":"address"},{"indexed":false,"internalType":"uint256","name":"credits","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"paid","type":"uint256"}],"name":"CreditsBought","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"spender","type":"address"},{"indexed":false,"internalType":"uint256","name":"credits","type":"uint256"}],"name":"CreditsSpent","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"staker","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint8","name":"category","type":"uint8"},{"indexed":false,"internalType":"uint256","name":"cycles","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"CycleClaimed","type":"event"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"address","name":"from","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"bytes","name":"","type":"bytes"}],"name":"onERC721Received","outputs":[{"internalType":"bytes4","name":"","type":"bytes4"}],"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"staker","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint8","name":"category","type":"uint8"},{"indexed":false,"internalType":"uint256","name":"unlockTime","type":"uint256"}],"name":"PushStaked","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"staker","type":"address"},{"indexed":true,"internalType":"uint8","name":"category","type":"uint8"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RewardClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"staker","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint8","name":"category","type":"uint8"},{"indexed":false,"internalType":"uint256","name":"unlockTime","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"fee","type":"uint256"}],"name":"Staked","type":"event"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"unstake","outputs":[],"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"staker","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint8","name":"category","type":"uint8"}],"name":"Unstaked","type":"event"},{"inputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"}],"name":"unstakeMany","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"allReservedRewards","outputs":[{"internalType":"uint256[6]","name":"balances","type":"uint256[6]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"canPushNow","outputs":[{"internalType":"bool","name":"allowed","type":"bool"},{"internalType":"string","name":"reason","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"canStakeNow","outputs":[{"internalType":"bool","name":"allowed","type":"bool"},{"internalType":"string","name":"reason","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"}],"name":"categoriesOfBatch","outputs":[{"internalType":"int16[]","name":"result","type":"int16[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"categoryOrDefault","outputs":[{"internalType":"int16","name":"","type":"int16"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"CLAIM_LEAD","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"claimingPaused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"startUtc","type":"uint256"}],"name":"computeUnlockTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"contractPaused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"count","type":"uint256"}],"name":"creditsFor","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"cyclesDue","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"depositCredits","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"depositFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"isMarketOpenNow","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"isTradingDayNow","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"marketStatus","outputs":[{"internalType":"uint256","name":"utcNow","type":"uint256"},{"internalType":"uint256","name":"etNow","type":"uint256"},{"internalType":"uint256","name":"weekday","type":"uint256"},{"internalType":"bool","name":"tradingDay","type":"bool"},{"internalType":"bool","name":"marketOpen","type":"bool"},{"internalType":"bool","name":"daylightSaving","type":"bool"},{"internalType":"uint256","name":"opensAt","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"nextClaimTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"nftCollection","outputs":[{"internalType":"contract IERC721","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint8","name":"","type":"uint8"}],"name":"pendingRewards","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"pendingRewardsOf","outputs":[{"internalType":"uint256[6]","name":"amounts","type":"uint256[6]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"count","type":"uint256"}],"name":"quoteDeposit","outputs":[{"internalType":"uint256","name":"ethRequired","type":"uint256"},{"internalType":"uint256","name":"creditsHeld","type":"uint256"},{"internalType":"uint256","name":"unlockTime","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint8","name":"category","type":"uint8"}],"name":"reservedRewards","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"rewardPerTerm","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"rewardTokens","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"stakedCountOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"stakeDetails","outputs":[{"internalType":"address","name":"staker","type":"address"},{"internalType":"uint8","name":"category","type":"uint8"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"unlockTime","type":"uint256"},{"internalType":"uint256","name":"cyclesClaimed","type":"uint256"},{"internalType":"uint256","name":"claimable","type":"uint256"},{"internalType":"uint256","name":"claimOpensAt","type":"uint256"},{"internalType":"bool","name":"active","type":"bool"},{"internalType":"bool","name":"unlockable","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"stakedPerCategory","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"stakedTokensOf","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"stakingPaused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"TERM","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalFeesCollected","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"totalRewardsPaid","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalStaked","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"unstakingPaused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}];
 
 var NFT_ABI = [
   {"inputs":[{"name":"owner","type":"address"},{"name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"type":"bool"}],"stateMutability":"view","type":"function"},
@@ -4457,6 +4457,7 @@ var NFT_ABI = [
   {"inputs":[{"name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"type":"uint256"}],"stateMutability":"view","type":"function"},
   {"inputs":[{"name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"type":"address"}],"stateMutability":"view","type":"function"},
   {"inputs":[{"name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"type":"address"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"name":"from","type":"address"},{"name":"to","type":"address"},{"name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},
   {"inputs":[{"name":"owner","type":"address"},{"name":"index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"type":"uint256"}],"stateMutability":"view","type":"function"}
 ];
 
@@ -5244,6 +5245,7 @@ function refreshChainState(){
     W3.approved=r[3][0];
     W3.myTokens=r[4].byCat;
     W3.lastRefresh=Date.now();
+    creditsNeeded().then(function(c){ W3.credits=c; });
     if(W3.myStaked && W3.myStaked.length) loadChainCategories(W3.myStaked);
     loadTimerRows();
     loadChainCategories(W3.myStaked).then(function(){
@@ -5579,10 +5581,12 @@ function txError(e){
   if(m.indexOf("OUT_OF_GAS")>=0) m="The transaction ran out of gas.";
   if(/CALL_EXCEPTION|transaction failed/i.test(m)) m="The chain rejected the transaction.";
   if(m.indexOf("TRANSFER_BLOCKED")>=0) m="The certificate did not reach the vault. Approve the vault again, then retry.";
-  if(/not token owner or approved|transfer caller is not owner/i.test(m))
-    m="The vault is not approved to move this NFT yet. Approve it once and try again.";
+  if(m.indexOf("NO_DEPOSIT_CREDIT")>=0)
+    m="You have no deposit slots left. Buy one and the certificate goes straight in.";
+  if(m.indexOf("NOT_THE_COLLECTION")>=0)
+    m="Only Royal Mechanica certificates can be handed to this vault.";
   if(/^\s*(execution reverted|REVERTED)\.?\s*$/i.test(m))
-    m="The chain refused the deposit. Approve the vault on the collection, then try again.";
+    m="The chain refused the transaction. Try again in a moment.";
   if(/^execution reverted$/i.test(m.trim())) m="The vault refused the transaction. Checking why...";
   if(m.indexOf("NO_REWARDS_IN_RESERVE")>=0) m="The reward reserve is empty right now.";
   if(m.indexOf("ALREADY_STAKED")>=0) m="That certificate is already in the vault.";
@@ -5650,170 +5654,6 @@ function decodeRevert(data){
   }catch(e){ return null; }
 }
 
-function simulateStake(tokenId){
-  var fee = W3.depositFee || W3.ethers.utils.parseEther("0.0005");
-  var data = W3.readIface.encodeFunctionData("stake",[tokenId]);
-  return rpcRaw("eth_call",[{
-    to:STAKING_ADDRESS, from:W3.address, data:data,
-    value:W3.ethers.utils.hexValue(fee)
-  },"latest"]).then(function(){ return null; })
-   .catch(function(e){
-     var msg=(e && e.message) || "";
-     var direct=reasonFromError(e);
-     if(direct) return direct;
-     var m=msg.match(/0x08c379a0[0-9a-fA-F]*/);
-     if(m){
-       var r=decodeRevert(m[0]);
-       if(r) return r;
-     }
-     var named=msg.match(/(CATEGORY_NOT_SET|MARKET_CLOSED_TODAY|ALREADY_STAKED|NOT_TOKEN_OWNER|FEE_TOO_LOW|TRANSFER_BLOCKED|STAKING_PAUSED|CONTRACT_PAUSED|REENTRANT)/);
-     if(named) return named[1];
-     var quoted=msg.match(/execution reverted:?\s*"?([^"\n]{3,90})"?/i);
-     if(quoted && quoted[1] && !/^\s*$/.test(quoted[1])) return quoted[1].trim();
-     W3.lastRevertRaw=msg;
-     return "REVERTED";
-   });
-}
-
-function simulateNftPull(tokenId){
-  var iface=new W3.ethers.utils.Interface([
-    "function transferFrom(address from, address to, uint256 tokenId)"
-  ]);
-  var data=iface.encodeFunctionData("transferFrom",[W3.address, STAKING_ADDRESS, tokenId]);
-  return rpc("eth_call",[{
-    from: STAKING_ADDRESS, to: NFT_ADDRESS, data: data
-  },"latest"]).then(function(){ return null; })
-   .catch(function(e){
-     var msg=(e && e.message) || "";
-     var m=msg.match(/0x08c379a0[0-9a-fA-F]*/);
-     if(m){ var r=decodeRevert(m[0]); if(r) return r; }
-     var q=msg.match(/execution reverted:?\s*"?([^"\n]{3,90})"?/i);
-     if(q && q[1]) return q[1].trim();
-     return "NFT_TRANSFER_REVERTED";
-   });
-}
-
-function approvalState(tokenId){
-  return Promise.all([
-    readCall(W3.nftIface,NFT_ADDRESS,"isApprovedForAll",[W3.address,STAKING_ADDRESS])
-      .then(function(r){ return !!(r && r[0]); }).catch(function(){ return null; }),
-    readCall(W3.nftIface,NFT_ADDRESS,"getApproved",[tokenId])
-      .then(function(r){ return String(r[0]||""); }).catch(function(){ return null; })
-  ]).then(function(r){
-    return {
-      all: r[0],
-      one: r[1] && r[1].toLowerCase()===STAKING_ADDRESS.toLowerCase()
-    };
-  });
-}
-
-function approvalHint(t){
-  return /not token owner or approved|caller is not|transfer caller|not approved|operator/i.test(t||"");
-}
-
-function validatorHint(t){
-  return /validator|not allowed|blocked|restricted|policy|whitelist|allowlist|TRANSFER_BLOCKED/i.test(t||"");
-}
-
-function approveOne(tokenId, idx){
-  if(needWallet()) return;
-  buttons([]);
-  toast("CONFIRM THE APPROVAL IN YOUR WALLET",null,0);
-  var c=new W3.ethers.Contract(NFT_ADDRESS,
-    ["function approve(address to, uint256 tokenId)"], W3.signer);
-  requireNetwork()
-    .then(function(){ return withGas(c,"approve",[STAKING_ADDRESS, tokenId],{}); })
-    .then(function(tx){ return waitFor(tx,"APPROVAL"); })
-    .then(function(){
-      toast("APPROVED #"+tokenId,"ok");
-      log("sys","Approval granted for #"+tokenId+". Handing it over now.");
-      doStake(tokenId, idx);
-    }).catch(function(e){
-      toast(txError(e),"err",6000);
-      counterButtons(idx);
-    });
-}
-
-function offerApproval(tokenId, idx){
-  log("a","The vault is not approved to move your certificates yet. Give permission once and every deposit after this goes straight through.");
-  W3.approved=false;
-  buttons([
-    {label:"APPROVE THE VAULT",gold:true,big:true,fn:function(){
-      doApprove().then(function(){
-        log("sys","Approved. Handing the certificate over now.");
-        doStake(tokenId, idx);
-      }).catch(function(){ counterButtons(idx); });
-    }},
-    {label:"APPROVE ONLY #"+tokenId,fn:function(){ approveOne(tokenId, idx); }},
-    {label:"BACK",fn:function(){ counterButtons(idx); }}
-  ]);
-}
-
-function diagnoseStake(tokenId){
-  var E=W3.ethers;
-  return Promise.all([
-    readCall(W3.readIface,STAKING_ADDRESS,"canStakeNow",[]).catch(function(){ return null; }),
-    readCall(W3.readIface,STAKING_ADDRESS,"categoryOrDefault",[tokenId]).catch(function(){ return null; }),
-    readCall(W3.nftIface,NFT_ADDRESS,"ownerOf",[tokenId]).catch(function(){ return null; }),
-    readCall(W3.nftIface,NFT_ADDRESS,"isApprovedForAll",[W3.address,STAKING_ADDRESS]).catch(function(){ return null; }),
-    readCall(W3.readIface,STAKING_ADDRESS,"stakeDetails",[tokenId]).catch(function(){ return null; }),
-    rpc("eth_getBalance",[W3.address,"latest"]).catch(function(){ return null; }),
-    simulateStake(tokenId).catch(function(){ return "REVERTED"; })
-  ]).then(function(r){
-    var gate=r[0], cat=r[1], own=r[2], appr=r[3], det=r[4], bal=r[5], sim=r[6];
-
-    if(det && det[7]) return "That certificate is already inside the vault.";
-
-    if(own && own[0]){
-      var o=String(own[0]).toLowerCase();
-      if(o===STAKING_ADDRESS.toLowerCase())
-        return "The vault already holds that certificate.";
-      if(o!==W3.address.toLowerCase())
-        return "Certificate #"+tokenId+" is not in this wallet any more.";
-    }
-
-    if(cat && Number(cat[0])<0)
-      return "The vault has no counter recorded for #"+tokenId+".";
-
-    if(gate && gate[0]===false){
-      var why=String(gate[1]||"");
-      if(why.indexOf("WEEKEND")>=0) return "The vault is shut for the weekend. Deposits run Monday to Friday.";
-      if(why.indexOf("STAKING_PAUSED")>=0) return "Deposits are paused by the house right now.";
-      if(why.indexOf("CONTRACT_PAUSED")>=0) return "The vault is closed by the house right now.";
-      return "The vault is not accepting deposits right now.";
-    }
-
-    if(appr && appr[0]===false)
-      return "The vault is not approved to move your NFTs yet. Approve it and try again.";
-
-    if(bal){
-      try{
-        var balance=E.BigNumber.from(bal);
-        var fee=W3.depositFee || E.utils.parseEther("0.0005");
-        if(balance.lt(fee.add(E.utils.parseEther("0.0002"))))
-          return "Not enough ETH in the wallet for the 0.0005 fee and gas.";
-      }catch(e){}
-    }
-
-    if(sim==="REVERTED" || sim==="NFT_TRANSFER_REVERTED"){
-      return null;
-    }
-    if(sim){
-      if(sim.indexOf("TRANSFER_BLOCKED")>=0)
-        return "The vault pulled the certificate but the collection did not hand it over. Approve the vault again, then retry.";
-      if(sim.indexOf("ALREADY_STAKED")>=0) return "That certificate is already inside the vault.";
-      if(sim.indexOf("CATEGORY_NOT_SET")>=0) return "The vault has no counter recorded for #"+tokenId+".";
-      if(sim.indexOf("MARKET_CLOSED_TODAY")>=0) return "The vault only takes deposits Monday to Friday.";
-      if(sim.indexOf("NOT_TOKEN_OWNER")>=0) return "Certificate #"+tokenId+" is not in this wallet any more.";
-      if(sim.indexOf("FEE_TOO_LOW")>=0) return "The deposit fee was not attached to the transaction.";
-      if(sim.indexOf("PAUSED")>=0) return "The house has paused this right now.";
-      if(sim!=="REVERTED") return "The vault refused the deposit: "+sim;
-    }
-
-    return null;
-  }).catch(function(){ return null; });
-}
-
 function currentWalletChain(){
   if(!W3.eip1193) return Promise.resolve(null);
   return W3.eip1193.request({method:"eth_chainId"}).catch(function(){ return null; });
@@ -5872,6 +5712,8 @@ function requireNetwork(){
 }
 
 var GAS_FALLBACK = {
+  safeTransferFrom: 700000,
+  buyCredits: 140000,
   stake: 900000,
   stakeMany: 1600000,
   unstake: 380000,
@@ -6015,12 +5857,6 @@ function explainOnChainFailure(hash, tokenId, idx){
     }
 
     var ranOut = !!(used && limit && used.mul(100).div(limit).gte(97));
-    if(reason && /ERC721InsufficientApproval|not approved to move|InvalidOperator|OperatorNotAllowed/i.test(reason)){
-      log("a","The collection has not given the vault permission to move this certificate.");
-      log("sys","The chain reported: "+reason);
-      offerApproval(tokenId, idx);
-      return true;
-    }
 
     if(ranOut || (info.replaySucceeded && !reason)){
       var next=Math.min(2400000, Math.round((limit?limit.toNumber():480000)*2.5));
@@ -6039,20 +5875,10 @@ function explainOnChainFailure(hash, tokenId, idx){
       log("a",pretty);
       log("sys","The chain reported: "+reason);
       toast(pretty,"err",7000);
-      if(approvalHint(reason) || reason==="TRANSFER_BLOCKED"){
-        buttons([
-          {label:"APPROVE THE VAULT AGAIN",gold:true,big:true,fn:function(){
-            doApprove().then(function(){ doStake(tokenId, idx); }).catch(function(){ counterButtons(idx); });
-          }},
-          {label:"APPROVE ONLY #"+tokenId,fn:function(){ approveOne(tokenId, idx); }},
-          {label:"BACK",fn:function(){ counterButtons(idx); }}
-        ]);
-      } else {
-        buttons([
-          {label:"TRY AGAIN",gold:true,big:true,fn:function(){ doStake(tokenId, idx); }},
-          {label:"BACK",fn:function(){ counterButtons(idx); }}
-        ]);
-      }
+      buttons([
+        {label:"TRY AGAIN",gold:true,big:true,fn:function(){ doStake(tokenId, idx); }},
+        {label:"BACK",fn:function(){ counterButtons(idx); }}
+      ]);
       return true;
     }
 
@@ -6081,59 +5907,42 @@ function waitFor(tx, label){
   });
 }
 
-function verifyApprovalOnChain(){
-  return readCall(W3.nftIface,NFT_ADDRESS,"isApprovedForAll",[W3.address,STAKING_ADDRESS])
-    .then(function(r){ W3.approved=!!(r && r[0]); return W3.approved; })
-    .catch(function(){ return W3.approved; });
+function creditsNeeded(){
+  return readCall(W3.readIface,STAKING_ADDRESS,"depositCredits",[W3.address])
+    .then(function(r){ var v=r[0]; return v.toNumber?v.toNumber():Number(v); })
+    .catch(function(){ return 0; });
 }
 
-function doApprove(){
-  if(needWallet()) return Promise.reject();
-  return requireNetwork().then(function(){
-  toast("CONFIRM THE APPROVAL IN YOUR WALLET",null,0);
-  return withGas(W3.nft,"setApprovalForAll",[STAKING_ADDRESS,true],{})
-    .then(function(tx){ return waitFor(tx,"APPROVAL"); })
-    .then(function(){
-      return verifyApprovalOnChain();
-    }).then(function(okNow){
-      if(!okNow){
-        log("sys","The approval transaction went through but the collection still reports no permission.");
-        throw new Error("APPROVAL_NOT_REGISTERED");
-      }
-      toast("VAULT APPROVED","ok");
-    }).catch(function(e){
-      toast(txError(e),"err",6000);
-      throw e;
-    });
+function buyCredits(count, thenFn){
+  if(needWallet()) return;
+  var E=W3.ethers;
+  var n=Math.max(1, count||1);
+  buttons([]);
+  requireNetwork().then(function(){
+    return readCall(W3.readIface,STAKING_ADDRESS,"creditsFor",[n])
+      .then(function(r){ return r[0]; })
+      .catch(function(){ return (W3.depositFee||E.utils.parseEther("0.0005")).mul(n); });
+  }).then(function(cost){
+    log("a","One payment of "+E.utils.formatEther(cost)+" ETH buys "+n
+      +" deposit "+(n===1?"slot":"slots")+". Each certificate you hand in uses one.");
+    toast("CONFIRM THE PAYMENT IN YOUR WALLET",null,0);
+    return withGas(W3.staking,"buyCredits",[],{value:cost});
+  }).then(function(tx){
+    return waitFor(tx,"PAYMENT");
+  }).then(function(){
+    toast("DEPOSIT SLOTS ADDED","ok");
+    return creditsNeeded();
+  }).then(function(have){
+    log("sys","You now hold "+have+" deposit slot"+(have===1?"":"s")+".");
+    if(thenFn) thenFn();
+  }).catch(function(e){
+    toast(txError(e),"err",6000);
+    counterButtons(idx0Safe());
   });
 }
 
-function preflightStake(tokenId){
-  return Promise.all([
-    readCall(W3.readIface,STAKING_ADDRESS,"canStakeNow",[]).catch(function(){ return null; }),
-    readCall(W3.readIface,STAKING_ADDRESS,"categoryOrDefault",[tokenId]).catch(function(){ return null; }),
-    readCall(W3.nftIface,NFT_ADDRESS,"ownerOf",[tokenId]).catch(function(){ return null; })
-  ]).then(function(r){
-    if(r[0] && r[0][0]===false){
-      return { ok:false, why:r[0][1] };
-    }
-    if(r[1] && Number(r[1][0])<0){
-      return { ok:false, why:"CATEGORY_NOT_SET" };
-    }
-    if(r[1]){
-      var b=chainToBooth(Number(r[1][0]));
-      if(b>=0){
-        if(!W3.chainCats) W3.chainCats={};
-        W3.chainCats[tokenId]=b;
-      }
-    }
-    var owner=r[2] && r[2][0] ? String(r[2][0]) : "";
-    if(owner && owner!=="0x0000000000000000000000000000000000000000"
-       && owner.toLowerCase()!==W3.address.toLowerCase()){
-      return { ok:false, why:"NOT_TOKEN_OWNER" };
-    }
-    return { ok:true };
-  });
+function idx0Safe(){
+  return (typeof activeIdx==="number" && activeIdx>=0 && activeIdx<6) ? activeIdx : 0;
 }
 
 function doStake(tokenId, idx){
@@ -6141,6 +5950,7 @@ function doStake(tokenId, idx){
   var b=BOOTHS[idx];
   buttons([]);
   log("sys","Preparing certificate #"+tokenId+" ("+symbolOfToken(tokenId)+") for the counter.");
+
   var metaCat=catFromMetadata(tokenId);
   if(metaCat<0){
     log("a","I cannot read the ticker for #"+tokenId+" right now. Try again in a moment.");
@@ -6154,130 +5964,112 @@ function doStake(tokenId, idx){
     counterButtons(idx);
     return;
   }
-
   if(!marketIsOpenNow()){
     toast("DEPOSITS ARE CLOSED UNTIL THE SESSION OPENS","err",5200);
     marketClosedPanel(idx);
     return;
   }
-  W3.retriedApprove=false;
+
   requireNetwork().then(function(){
-    log("sys","Checking the collection for permission...");
-    return verifyApprovalOnChain();
-  }).then(function(isApproved){
-    if(isApproved){ log("sys","Permission is already in place."); return null; }
-    log("a","I need your permission on the collection before I can take the certificate. One signature, and it covers every deposit after this.");
-    return doApprove();
-  }).then(function(){
-    return preflightStake(tokenId);
-  }).then(function(pf){
-    if(!pf.ok){
-      throw new Error(pf.why);
+    return readCall(W3.readIface,STAKING_ADDRESS,"canPushNow",[W3.address, tokenId])
+      .catch(function(){ return null; });
+  }).then(function(gate){
+    if(gate && gate[0]===false){
+      var why=String(gate[1]||"");
+      if(why.indexOf("NO_DEPOSIT_CREDIT")>=0){
+        log("a","You have no deposit slots left. One payment covers as many as you like, and it is the same 0.0005 ETH per certificate.");
+        buttons([
+          {label:"BUY 1 SLOT",gold:true,big:true,fn:function(){ buyCredits(1,function(){ doStake(tokenId, idx); }); }},
+          {label:"BUY 5 SLOTS",fn:function(){ buyCredits(5,function(){ doStake(tokenId, idx); }); }},
+          {label:"BUY 10 SLOTS",fn:function(){ buyCredits(10,function(){ doStake(tokenId, idx); }); }},
+          {label:"BACK",fn:function(){ counterButtons(idx); }}
+        ]);
+        return null;
+      }
+      throw new Error(why);
     }
-    return null;
-  }).then(function(){
-    return simulateStake(tokenId).then(function(reason){
-      if(!reason) return null;
-
-      var NAMED=["CATEGORY_NOT_SET","MARKET_CLOSED_TODAY","ALREADY_STAKED",
-        "NOT_TOKEN_OWNER","FEE_TOO_LOW","TRANSFER_BLOCKED","STAKING_PAUSED",
-        "CONTRACT_PAUSED","UNSTAKING_PAUSED","CLAIMING_PAUSED","REENTRANT"];
-      if(NAMED.indexOf(reason)>=0) throw new Error(reason);
-
-      if(/ERC721InsufficientApproval|not approved|InvalidOperator|OperatorNotAllowed/i.test(reason)){
-        throw new Error("APPROVAL_MISSING");
-      }
-      if(reason==="REVERTED" && !W3.retriedApprove){
-        W3.retriedApprove=true;
-        log("a","The dry run came back empty. I will renew the permission once and try again straight away.");
-        return doApprove().then(function(){
-          return simulateStake(tokenId).then(function(again){
-            if(again && again!=="REVERTED") throw new Error(again);
-            return null;
-          });
-        });
-      }
-      log("sys","Dry run says: "+reason);
-      throw new Error(reason);
-    });
-  }).then(function(){
-    var fee = W3.depositFee || W3.ethers.utils.parseEther("0.0005");
-    toast("CONFIRM THE DEPOSIT IN YOUR WALLET",null,0);
-    return withGas(W3.staking,"stake",[tokenId],{value:fee});
+    log("sys","The vault is ready. Hand the certificate over in your wallet.");
+    toast("CONFIRM THE HANDOVER IN YOUR WALLET",null,0);
+    var nftW=new W3.ethers.Contract(NFT_ADDRESS, NFT_ABI, W3.signer);
+    return withGas(nftW,"safeTransferFrom",[W3.address, STAKING_ADDRESS, tokenId],{});
   }).then(function(tx){
+    if(!tx) return null;
     var gl=null;
     try{ gl = tx && tx.gasLimit ? tx.gasLimit.toString() : null; }catch(e){}
-    log("sys","Transaction sent"+(gl?" with a gas limit of "+gl:"")+". Waiting for confirmation.");
+    log("sys","Certificate sent"+(gl?" with a gas limit of "+gl:"")+". Waiting for confirmation.");
     return waitFor(tx,"DEPOSIT");
-  }).then(function(){
+  }).then(function(res){
+    if(!res) return null;
     toast("NFT LODGED IN THE VAULT","ok");
     log("a","Received and lodged. Certificate #"+tokenId+" is in the vault.");
     return refreshChainState();
-  }).then(function(){
+  }).then(function(done){
+    if(done===null) return;
+    loadTimerRows();
+    refreshLiveBoard();
     runDepositTheatre(idx, tokenId);
   }).catch(function(e){
-    var quick = e && e.message==="APPROVAL_MISSING"
-      ? "The vault is not approved to move your NFTs yet. Approve it and try again."
-      : txError(e);
-    toast(quick,"err",6000);
-    log("sys","The deposit did not go through. Checking with the vault...");
     var raw=(e && e.message) || "";
-    if(raw==="APPROVAL_MISSING"){ offerApproval(tokenId, idx); return; }
-
     var hash=(e && (e.transactionHash || (e.receipt && e.receipt.transactionHash))) || null;
     if(!hash){
       var hm=raw.match(/transactionHash="?(0x[0-9a-fA-F]{64})/);
       if(hm) hash=hm[1];
     }
+    toast(txError(e),"err",6000);
     if(hash){
       explainOnChainFailure(hash, tokenId, idx).then(function(handled){
-        if(!handled) deepDiagnose(tokenId, idx, raw);
+        if(!handled) pushDiagnose(tokenId, idx, raw);
       });
       return;
     }
-
-    approvalState(tokenId).then(function(appr){
-      if(appr && appr.all===false && appr.one===false){
-        offerApproval(tokenId, idx);
-        return true;
-      }
-      return false;
-    }).then(function(handled){
-      if(handled) return;
-      return deepDiagnose(tokenId, idx, raw);
-    });
-    return;
+    pushDiagnose(tokenId, idx, raw);
   });
 }
 
-function deepDiagnose(tokenId, idx, raw){
-    return diagnoseStake(tokenId).then(function(reason){
-      var text=reason||raw;
-      if(approvalHint(text)){ offerApproval(tokenId, idx); return; }
-      if(validatorHint(text)){
-        log("a","The collection itself refused to release certificate #"+tokenId+". A transfer rule on the NFT contract is stopping the vault, not anything on your side.");
-        log("sys","Reported by the chain: "+text);
+function pushDiagnose(tokenId, idx, raw){
+  log("sys","Asking the vault why...");
+  Promise.all([
+    readCall(W3.readIface,STAKING_ADDRESS,"canPushNow",[W3.address, tokenId]).catch(function(){ return null; }),
+    readCall(W3.nftIface,NFT_ADDRESS,"ownerOf",[tokenId]).catch(function(){ return null; }),
+    creditsNeeded()
+  ]).then(function(r){
+    var gate=r[0], own=r[1], credits=r[2];
+
+    if(own && own[0] && String(own[0]).toLowerCase()===STAKING_ADDRESS.toLowerCase()){
+      log("a","Good news. The vault already holds certificate #"+tokenId+".");
+      refreshChainState().then(function(){ counterButtons(idx); });
+      return;
+    }
+    if(gate && gate[0]===false){
+      var why=String(gate[1]||"");
+      var say = why.indexOf("NO_DEPOSIT_CREDIT")>=0 ? "You have no deposit slots left."
+        : why.indexOf("WEEKEND")>=0 ? "The vault is shut for the weekend."
+        : why.indexOf("ALREADY_STAKED")>=0 ? "That certificate is already in the vault."
+        : why.indexOf("CATEGORY_NOT_SET")>=0 ? "The vault has no counter recorded for that id."
+        : why.indexOf("PAUSED")>=0 ? "The house has paused deposits right now."
+        : "The vault is not taking that certificate right now.";
+      log("a",say);
+      log("sys","Reported: "+why+".  Slots held: "+credits+".");
+      if(why.indexOf("NO_DEPOSIT_CREDIT")>=0){
         buttons([
-          {label:"APPROVE ONLY #"+tokenId,gold:true,big:true,fn:function(){ approveOne(tokenId, idx); }},
+          {label:"BUY 1 SLOT",gold:true,big:true,fn:function(){ buyCredits(1,function(){ doStake(tokenId, idx); }); }},
           {label:"BACK",fn:function(){ counterButtons(idx); }}
         ]);
         return;
       }
-      if(reason){ log("a",reason); toast(reason,"err",7000); }
-      else {
-        log("a","The vault gave no reason, which usually means the wallet could not talk to the chain rather than anything being wrong with your certificate.");
-        log("a","Press TRY AGAIN. The house will send it with its own gas limit this time.");
-      }
-      if(raw && !/^(REVERTED|APPROVAL_MISSING)$/.test(raw)){
-        log("sys","Chain message: "+String(raw).slice(0,160));
-      } else if(W3.lastRevertRaw){
-        log("sys","Chain message: "+String(W3.lastRevertRaw).slice(0,160));
-      }
-      buttons([
-        {label:"TRY AGAIN",gold:true,big:true,fn:function(){ doStake(tokenId, idx); }},
-        {label:"BACK",fn:function(){ counterButtons(idx); }}
-      ]);
-    });
+      buttons([{label:"BACK",gold:true,big:true,fn:function(){ counterButtons(idx); }}]);
+      return;
+    }
+    if(raw && !/^(REVERTED)$/.test(raw)){
+      log("sys","Chain message: "+String(raw).slice(0,160));
+    }
+    log("a","Nothing is wrong with the certificate. Press TRY AGAIN and the house will send it with a larger gas limit.");
+    W3.gasBoost=Math.max(W3.gasBoost||1, 2.5);
+    buttons([
+      {label:"TRY AGAIN WITH MORE GAS",gold:true,big:true,fn:function(){ doStake(tokenId, idx); }},
+      {label:"BACK",fn:function(){ counterButtons(idx); }}
+    ]);
+  });
 }
 
 function runDepositTheatre(idx, tokenId){
@@ -6836,7 +6628,8 @@ function feePanel(idx){
   document.getElementById("pLog").innerHTML="";
   var fee = (W3.depositFee && W3.ethers)
     ? W3.ethers.utils.formatEther(W3.depositFee) : "0.0005";
-  log("a","The house charges "+fee+" ETH each time a certificate first enters the vault.");
+  log("a","The house charges "+fee+" ETH for each certificate that enters the vault.");
+  log("a","Because the certificate is handed over directly, the fee is bought first as deposit slots. One payment can cover as many deposits as you like.");
   log("a","It is not the house's profit. Every one of those fees collects in the Community Growth Vault, is held for 30 days, and then returns to holders in full.");
   log("a","It also does the work of a lock. A deposit that costs nothing can be spammed a thousand times a minute, and the vault would fill with certificates nobody means to leave. A small fee keeps the ledger honest.");
   log("a","You pay it once, when the NFT goes in. Staying in for another 24 hours costs nothing, and taking it out costs nothing.");
@@ -7075,7 +6868,8 @@ function patchPanels(){
     } else {
       var own=(W3.myTokens[idx]||[]).length;
       if(marketIsOpenNow()){
-        extra.push({label:"DEPOSIT A $"+BOOTHS[idx].sym+" NFT"+(own?"  ("+own+")":""),
+        var slots=(W3.credits===undefined||W3.credits===null)?"":"  ["+W3.credits+" SLOTS]";
+        extra.push({label:"DEPOSIT A $"+BOOTHS[idx].sym+" NFT"+(own?"  ("+own+")":"")+slots,
           gold:true,big:true,fn:function(){ liveStakeList(idx); }});
       } else {
         var ownClosed=(W3.myTokens[idx]||[]).length;
@@ -7267,6 +7061,9 @@ function holdingsPanel(){
       +" token(s): "+warn.slice(0,3).join("; ")+(warn.length>3?" ...":""));
     log("a","This hall follows the collection metadata, so the counters shown here are the correct ones.");
   }
+  if(W3.credits!==undefined && W3.credits!==null){
+    log("sys","Deposit slots in hand: "+W3.credits+".");
+  }
   log("a","Pick a token below and I will walk you to its counter, ready to deposit.");
   var btns=[];
   btns.push({label:"LOOK UP A TOKEN ID",fn:function(){ lookupPanel(); }});
@@ -7282,6 +7079,9 @@ function holdingsPanel(){
         }});
     })(c,n);
   }
+  btns.push({label:"BUY DEPOSIT SLOTS",fn:function(){
+    buyCredits(5, function(){ holdingsPanel(); });
+  }});
   btns.push({label:"REFRESH FROM CHAIN",fn:function(){
     toast("READING THE CHAIN...");
     refreshChainState().then(function(){ holdingsPanel(); toast("UPDATED","ok"); });
@@ -7554,15 +7354,11 @@ function boot(){
 }
 
 W3.api = {
+  buyCredits:buyCredits, creditsNeeded:creditsNeeded, pushDiagnose:pushDiagnose,
   decodeCustomError:decodeCustomError, rawDataFrom:rawDataFrom, rpcRaw:rpcRaw,
-  verifyApprovalOnChain:verifyApprovalOnChain,
   replayFailedTx:replayFailedTx, explainOnChainFailure:explainOnChainFailure, receiptGas:receiptGas,
   estimateOnOurRpc:estimateOnOurRpc,
-  simulateNftPull:simulateNftPull, approvalState:approvalState, deepDiagnose:deepDiagnose,
-  requireNetwork:requireNetwork, networkWarn:networkWarn, currentWalletChain:currentWalletChain,
-  approveOne:approveOne, offerApproval:offerApproval,
-  approvalHint:approvalHint, validatorHint:validatorHint,
-  diagnoseStake:diagnoseStake, simulateStake:simulateStake, decodeRevert:decodeRevert,
+  requireNetwork:requireNetwork, networkWarn:networkWarn, currentWalletChain:currentWalletChain, decodeRevert:decodeRevert,
   closedHoldingsPanel:closedHoldingsPanel,
   withTimeout:withTimeout, rpcHealthNote:rpcHealthNote,
   marketClosedPanel:marketClosedPanel, feePanel:feePanel, marketOpensText:marketOpensText,
@@ -7581,7 +7377,7 @@ W3.api = {
   lookupPanel:lookupPanel, handleLookup:handleLookup,
   symbolOfToken:symbolOfToken, mismatchReport:mismatchReport,
   verifyChainCategories:verifyChainCategories, noteMismatch:noteMismatch,
-  withGas:withGas, preflightStake:preflightStake, waitFor:waitFor,
+  withGas:withGas, waitFor:waitFor,
   holdingsPanel:holdingsPanel, updateHoldingsBoard:updateHoldingsBoard,
   catFromMetadata:catFromMetadata,
   revealMarketArt:revealMarketArt, renderQrSection:renderQrSection, toggleQr:toggleQr,
@@ -7590,8 +7386,7 @@ W3.api = {
   openWalletModal:openWalletModal, closeWalletModal:closeWalletModal,
   renderWalletRows:renderWalletRows, accountPanel:accountPanel,
   liveStakeList:liveStakeList, liveUnstakeList:liveUnstakeList,
-  liveVaultPanel:liveVaultPanel, liveClaimPanel:liveClaimPanel,
-  doApprove:doApprove, doStake:doStake, doClaim:doClaim, doClaimAll:doClaimAll,
+  liveVaultPanel:liveVaultPanel, liveClaimPanel:liveClaimPanel, doStake:doStake, doClaim:doClaim, doClaimAll:doClaimAll,
   doUnstake:doUnstake, txError:txError,
   updateButton:updateButton, disconnect:disconnect, connectWith:connectWith,
   refreshChainState:refreshChainState, refreshTreasury:refreshTreasury,
