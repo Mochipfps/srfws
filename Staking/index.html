@@ -6160,21 +6160,21 @@ function doStake(tokenId, idx){
     marketClosedPanel(idx);
     return;
   }
+  W3.retriedApprove=false;
   requireNetwork().then(function(){
+    log("sys","Checking the collection for permission...");
+    return verifyApprovalOnChain();
+  }).then(function(isApproved){
+    if(isApproved){ log("sys","Permission is already in place."); return null; }
+    log("a","I need your permission on the collection before I can take the certificate. One signature, and it covers every deposit after this.");
+    return doApprove();
+  }).then(function(){
     return preflightStake(tokenId);
   }).then(function(pf){
     if(!pf.ok){
       throw new Error(pf.why);
     }
-    return W3.approved ? Promise.resolve() : doApprove();
-  }).then(function(){
-    return readCall(W3.nftIface,NFT_ADDRESS,"isApprovedForAll",[W3.address,STAKING_ADDRESS])
-      .then(function(a){
-        W3.approved = !!(a && a[0]);
-        if(!W3.approved) throw new Error("APPROVAL_MISSING");
-      }).catch(function(e){
-        if(e && e.message==="APPROVAL_MISSING") throw e;
-      });
+    return null;
   }).then(function(){
     return simulateStake(tokenId).then(function(reason){
       if(!reason) return null;
@@ -6186,6 +6186,16 @@ function doStake(tokenId, idx){
 
       if(/ERC721InsufficientApproval|not approved|InvalidOperator|OperatorNotAllowed/i.test(reason)){
         throw new Error("APPROVAL_MISSING");
+      }
+      if(reason==="REVERTED" && !W3.retriedApprove){
+        W3.retriedApprove=true;
+        log("a","The dry run came back empty. I will renew the permission once and try again straight away.");
+        return doApprove().then(function(){
+          return simulateStake(tokenId).then(function(again){
+            if(again && again!=="REVERTED") throw new Error(again);
+            return null;
+          });
+        });
       }
       log("sys","Dry run says: "+reason);
       throw new Error(reason);
