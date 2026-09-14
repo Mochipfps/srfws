@@ -5365,6 +5365,12 @@ function sameChain(a,b){
   }
 }
 
+function networkWarn(){
+  if(!W3.address) return false;
+  if(!W3.expectedChainId || !W3.chainId) return false;
+  return !sameChain(W3.chainId, W3.expectedChainId);
+}
+
 function checkNetworkBadge(){
   var b=document.getElementById("wcBtn");
   if(!b || !W3.address) return;
@@ -5520,7 +5526,8 @@ function needWallet(){
 }
 
 function txError(e){
-  var m = (e && e.data && e.data.message) || (e && e.error && e.error.message) || (e && e.message) || "Transaction failed";
+  var m = (e && e.rmReason) || (e && e.data && e.data.message)
+    || (e && e.error && e.error.message) || (e && e.message) || "Transaction failed";
   if(e && e.code===4001) m="You rejected the transaction.";
   if(m.indexOf("CATEGORY_NOT_SET")>=0) m="This token is not mapped to a counter yet.";
   if(m.indexOf("MARKET_CLOSED_TODAY")>=0) m="The market is closed today. Deposits run Monday to Friday.";
@@ -5529,7 +5536,15 @@ function txError(e){
   if(m.indexOf("TERM_NOT_FINISHED")>=0) m="The term has not finished yet.";
   if(m.indexOf("NOTHING_TO_CLAIM")>=0) m="There is nothing to claim.";
   if(m.indexOf("NOTHING_DUE_YET")>=0) m="The reward opens ten minutes before the 24 hours are up. It is not open yet.";
-  if(m.indexOf("TRANSFER_BLOCKED")>=0) m="The collection blocked the transfer. Check the approval and try again.";
+  if(m.indexOf("WRONG_NETWORK")>=0)
+    m="Your wallet is not on Robinhood Chain. Switch it there and try again. Nothing was sent.";
+  if(m.indexOf("WALLET_NOT_CONNECTED")>=0) m="Connect your wallet first.";
+  if(m.indexOf("TRANSFER_BLOCKED")>=0) m="The collection refused to release the NFT to the vault. A transfer guard is blocking it.";
+  if(/not token owner or approved|transfer caller is not owner/i.test(m))
+    m="The vault is not approved to move this NFT yet. Approve it once and try again.";
+  if(/^\s*(execution reverted|REVERTED)\.?\s*$/i.test(m))
+    m="The chain refused the deposit. Approve the vault on the collection, then try again.";
+  if(/^execution reverted$/i.test(m.trim())) m="The vault refused the transaction. Checking why...";
   if(m.indexOf("NO_REWARDS_IN_RESERVE")>=0) m="The reward reserve is empty right now.";
   if(m.indexOf("ALREADY_STAKED")>=0) m="That certificate is already in the vault.";
   if(m.indexOf("NOT_TOKEN_OWNER")>=0) m="That token is not in this wallet.";
@@ -5545,6 +5560,197 @@ function txError(e){
   return m;
 }
 
+function decodeRevert(data){
+  if(!data || typeof data!=="string") return null;
+  var hex=data.indexOf("0x")===0?data.slice(2):data;
+  if(hex.length<8) return null;
+  if(hex.slice(0,8)!=="08c379a0") return null;
+  try{
+    var out=W3.ethers.utils.defaultAbiCoder.decode(["string"],"0x"+hex.slice(8));
+    return out[0];
+  }catch(e){ return null; }
+}
+
+function simulateStake(tokenId){
+  var fee = W3.depositFee || W3.ethers.utils.parseEther("0.0005");
+  var data = W3.readIface.encodeFunctionData("stake",[tokenId]);
+  return rpc("eth_call",[{
+    to:STAKING_ADDRESS, from:W3.address, data:data,
+    value:W3.ethers.utils.hexValue(fee)
+  },"latest"]).then(function(){ return null; })
+   .catch(function(e){
+     var msg=(e && e.message) || "";
+     var m=msg.match(/0x08c379a0[0-9a-fA-F]*/);
+     if(m){
+       var r=decodeRevert(m[0]);
+       if(r) return r;
+     }
+     var named=msg.match(/(CATEGORY_NOT_SET|MARKET_CLOSED_TODAY|ALREADY_STAKED|NOT_TOKEN_OWNER|FEE_TOO_LOW|TRANSFER_BLOCKED|STAKING_PAUSED|CONTRACT_PAUSED|REENTRANT)/);
+     if(named) return named[1];
+     return "REVERTED";
+   });
+}
+
+function approvalHint(t){
+  return /not token owner or approved|caller is not|transfer caller|not approved|operator/i.test(t||"");
+}
+
+function validatorHint(t){
+  return /validator|not allowed|blocked|restricted|policy|whitelist|allowlist|TRANSFER_BLOCKED/i.test(t||"");
+}
+
+function approveOne(tokenId, idx){
+  if(needWallet()) return;
+  buttons([]);
+  toast("CONFIRM THE APPROVAL IN YOUR WALLET",null,0);
+  var c=new W3.ethers.Contract(NFT_ADDRESS,
+    ["function approve(address to, uint256 tokenId)"], W3.signer);
+  requireNetwork()
+    .then(function(){ return withGas(c,"approve",[STAKING_ADDRESS, tokenId],{}); })
+    .then(function(tx){ return waitFor(tx,"APPROVAL"); })
+    .then(function(){
+      toast("APPROVED #"+tokenId,"ok");
+      log("sys","Approval granted for #"+tokenId+". Handing it over now.");
+      doStake(tokenId, idx);
+    }).catch(function(e){
+      toast(txError(e),"err",6000);
+      counterButtons(idx);
+    });
+}
+
+function offerApproval(tokenId, idx){
+  log("a","The vault is not approved to move your certificates yet. Give permission once and every deposit after this goes straight through.");
+  buttons([
+    {label:"APPROVE THE VAULT",gold:true,big:true,fn:function(){
+      doApprove().then(function(){
+        log("sys","Approved. Handing the certificate over now.");
+        doStake(tokenId, idx);
+      }).catch(function(){ counterButtons(idx); });
+    }},
+    {label:"APPROVE ONLY #"+tokenId,fn:function(){ approveOne(tokenId, idx); }},
+    {label:"BACK",fn:function(){ counterButtons(idx); }}
+  ]);
+}
+
+function diagnoseStake(tokenId){
+  var E=W3.ethers;
+  return Promise.all([
+    readCall(W3.readIface,STAKING_ADDRESS,"canStakeNow",[]).catch(function(){ return null; }),
+    readCall(W3.readIface,STAKING_ADDRESS,"categoryOrDefault",[tokenId]).catch(function(){ return null; }),
+    readCall(W3.nftIface,NFT_ADDRESS,"ownerOf",[tokenId]).catch(function(){ return null; }),
+    readCall(W3.nftIface,NFT_ADDRESS,"isApprovedForAll",[W3.address,STAKING_ADDRESS]).catch(function(){ return null; }),
+    readCall(W3.readIface,STAKING_ADDRESS,"stakeDetails",[tokenId]).catch(function(){ return null; }),
+    rpc("eth_getBalance",[W3.address,"latest"]).catch(function(){ return null; }),
+    simulateStake(tokenId).catch(function(){ return "REVERTED"; })
+  ]).then(function(r){
+    var gate=r[0], cat=r[1], own=r[2], appr=r[3], det=r[4], bal=r[5], sim=r[6];
+
+    if(det && det[7]) return "That certificate is already inside the vault.";
+
+    if(own && own[0]){
+      var o=String(own[0]).toLowerCase();
+      if(o===STAKING_ADDRESS.toLowerCase())
+        return "The vault already holds that certificate.";
+      if(o!==W3.address.toLowerCase())
+        return "Certificate #"+tokenId+" is not in this wallet any more.";
+    }
+
+    if(cat && Number(cat[0])<0)
+      return "The vault has no counter recorded for #"+tokenId+".";
+
+    if(gate && gate[0]===false){
+      var why=String(gate[1]||"");
+      if(why.indexOf("WEEKEND")>=0) return "The vault is shut for the weekend. Deposits run Monday to Friday.";
+      if(why.indexOf("STAKING_PAUSED")>=0) return "Deposits are paused by the house right now.";
+      if(why.indexOf("CONTRACT_PAUSED")>=0) return "The vault is closed by the house right now.";
+      return "The vault is not accepting deposits right now.";
+    }
+
+    if(appr && appr[0]===false)
+      return "The vault is not approved to move your NFTs yet. Approve it and try again.";
+
+    if(bal){
+      try{
+        var balance=E.BigNumber.from(bal);
+        var fee=W3.depositFee || E.utils.parseEther("0.0005");
+        if(balance.lt(fee.add(E.utils.parseEther("0.0002"))))
+          return "Not enough ETH in the wallet for the 0.0005 fee and gas.";
+      }catch(e){}
+    }
+
+    if(sim){
+      if(sim.indexOf("TRANSFER_BLOCKED")>=0)
+        return "The collection refused to release the NFT to the vault. A transfer guard on the contract is blocking it.";
+      if(sim.indexOf("ALREADY_STAKED")>=0) return "That certificate is already inside the vault.";
+      if(sim.indexOf("CATEGORY_NOT_SET")>=0) return "The vault has no counter recorded for #"+tokenId+".";
+      if(sim.indexOf("MARKET_CLOSED_TODAY")>=0) return "The vault only takes deposits Monday to Friday.";
+      if(sim.indexOf("NOT_TOKEN_OWNER")>=0) return "Certificate #"+tokenId+" is not in this wallet any more.";
+      if(sim.indexOf("FEE_TOO_LOW")>=0) return "The deposit fee was not attached to the transaction.";
+      if(sim.indexOf("PAUSED")>=0) return "The house has paused this right now.";
+      if(sim!=="REVERTED") return "The vault refused the deposit: "+sim;
+    }
+
+    return null;
+  }).catch(function(){ return null; });
+}
+
+function currentWalletChain(){
+  if(!W3.eip1193) return Promise.resolve(null);
+  return W3.eip1193.request({method:"eth_chainId"}).catch(function(){ return null; });
+}
+
+function requireNetwork(){
+  if(!W3.eip1193) return Promise.reject(new Error("WALLET_NOT_CONNECTED"));
+
+  var target = W3.expectedChainId
+    ? Promise.resolve(W3.expectedChainId)
+    : rpc("eth_chainId",[]).then(function(t){ W3.expectedChainId=t; return t; });
+
+  return target.then(function(want){
+    return currentWalletChain().then(function(have){
+      W3.chainId=have;
+      if(sameChain(have,want)){ checkNetworkBadge(); return true; }
+
+      toast("SWITCH YOUR WALLET TO ROBINHOOD CHAIN",null,0);
+      log("a","Your wallet is not on Robinhood Chain. Nothing will be sent until it is, so no fee can be spent on the wrong network.");
+
+      return W3.eip1193.request({
+        method:"wallet_switchEthereumChain",
+        params:[{chainId:want}]
+      }).catch(function(err){
+        if(err && (err.code===4902 || err.code===-32603)){
+          return W3.eip1193.request({
+            method:"wallet_addEthereumChain",
+            params:[{
+              chainId:want,
+              chainName:"Robinhood Chain",
+              nativeCurrency:{name:"Ether",symbol:"ETH",decimals:18},
+              rpcUrls:[RPC_URLS[0],RPC_URLS[1],RPC_URLS[2]]
+            }]
+          });
+        }
+        throw err;
+      }).then(function(){
+        return currentWalletChain();
+      }).then(function(now){
+        W3.chainId=now;
+        checkNetworkBadge();
+        if(!sameChain(now,want)) throw new Error("WRONG_NETWORK");
+        W3.provider=new W3.ethers.providers.Web3Provider(W3.eip1193,"any");
+        W3.signer=W3.provider.getSigner();
+        W3.staking=new W3.ethers.Contract(STAKING_ADDRESS,STAKING_ABI,W3.signer);
+        W3.nft=new W3.ethers.Contract(NFT_ADDRESS,NFT_ABI,W3.signer);
+        toast("ON ROBINHOOD CHAIN","ok");
+        return true;
+      }).catch(function(e){
+        checkNetworkBadge();
+        if(e && e.code===4001) throw new Error("WRONG_NETWORK");
+        throw new Error("WRONG_NETWORK");
+      });
+    });
+  });
+}
+
 function withGas(contract, method, args, overrides){
   var ov=overrides||{};
   return contract.estimateGas[method].apply(null, args.concat([ov]))
@@ -5557,7 +5763,10 @@ function withGas(contract, method, args, overrides){
     })
     .catch(function(err){
       var msg=(err && (err.message||"")) + ((err&&err.data&&err.data.message)||"");
-      if(/revert|execution reverted|CATEGORY_NOT_SET|MARKET_CLOSED|ALREADY_STAKED|STILL_LOCKED|NOT_TOKEN_OWNER|FEE_TOO_LOW|NOTHING_TO_CLAIM|PAUSED/i.test(msg)){
+      var inner=(err && err.error && err.error.data) || (err && err.data);
+      var reason=decodeRevert(typeof inner==="string"?inner:(inner&&inner.data));
+      if(reason){ err.rmReason=reason; throw err; }
+      if(/revert|execution reverted|CATEGORY_NOT_SET|MARKET_CLOSED|ALREADY_STAKED|STILL_LOCKED|NOT_TOKEN_OWNER|FEE_TOO_LOW|NOTHING_TO_CLAIM|NOTHING_DUE_YET|TRANSFER_BLOCKED|PAUSED/i.test(msg)){
         throw err;
       }
       var o2={};
@@ -5577,6 +5786,7 @@ function waitFor(tx, label){
 
 function doApprove(){
   if(needWallet()) return Promise.reject();
+  return requireNetwork().then(function(){
   toast("CONFIRM THE APPROVAL IN YOUR WALLET",null,0);
   return withGas(W3.nft,"setApprovalForAll",[STAKING_ADDRESS,true],{})
     .then(function(tx){ return waitFor(tx,"APPROVAL"); })
@@ -5587,6 +5797,7 @@ function doApprove(){
       toast(txError(e),"err",6000);
       throw e;
     });
+  });
 }
 
 function preflightStake(tokenId){
@@ -5641,11 +5852,25 @@ function doStake(tokenId, idx){
     marketClosedPanel(idx);
     return;
   }
-  preflightStake(tokenId).then(function(pf){
+  requireNetwork().then(function(){
+    return preflightStake(tokenId);
+  }).then(function(pf){
     if(!pf.ok){
       throw new Error(pf.why);
     }
     return W3.approved ? Promise.resolve() : doApprove();
+  }).then(function(){
+    return readCall(W3.nftIface,NFT_ADDRESS,"isApprovedForAll",[W3.address,STAKING_ADDRESS])
+      .then(function(a){
+        W3.approved = !!(a && a[0]);
+        if(!W3.approved) throw new Error("APPROVAL_MISSING");
+      }).catch(function(e){
+        if(e && e.message==="APPROVAL_MISSING") throw e;
+      });
+  }).then(function(){
+    return simulateStake(tokenId).then(function(reason){
+      if(reason) throw new Error(reason);
+    });
   }).then(function(){
     var fee = W3.depositFee || W3.ethers.utils.parseEther("0.0005");
     toast("CONFIRM THE DEPOSIT IN YOUR WALLET",null,0);
@@ -5660,8 +5885,32 @@ function doStake(tokenId, idx){
   }).then(function(){
     runDepositTheatre(idx, tokenId);
   }).catch(function(e){
-    if(e) toast(txError(e),"err",6000);
-    counterButtons(idx);
+    var quick = e && e.message==="APPROVAL_MISSING"
+      ? "The vault is not approved to move your NFTs yet. Approve it and try again."
+      : txError(e);
+    toast(quick,"err",6000);
+    log("sys","The deposit did not go through. Checking with the vault...");
+    var raw=(e && e.message) || "";
+    if(raw==="APPROVAL_MISSING"){ offerApproval(tokenId, idx); return; }
+    diagnoseStake(tokenId).then(function(reason){
+      var text=reason||raw;
+      if(approvalHint(text)){ offerApproval(tokenId, idx); return; }
+      if(validatorHint(text)){
+        log("a","The collection itself refused to release certificate #"+tokenId+". A transfer rule on the NFT contract is stopping the vault, not anything on your side.");
+        log("sys","Reported by the chain: "+text);
+        buttons([
+          {label:"APPROVE ONLY #"+tokenId,gold:true,big:true,fn:function(){ approveOne(tokenId, idx); }},
+          {label:"BACK",fn:function(){ counterButtons(idx); }}
+        ]);
+        return;
+      }
+      if(reason){ log("a",reason); toast(reason,"err",7000); }
+      else { log("a","The vault gave no reason. Try once more in a moment, and if it happens again send me the certificate number."); }
+      buttons([
+        {label:"TRY AGAIN",gold:true,big:true,fn:function(){ doStake(tokenId, idx); }},
+        {label:"BACK",fn:function(){ counterButtons(idx); }}
+      ]);
+    });
   });
 }
 
@@ -5926,7 +6175,9 @@ function claimBarLive(idx, tokenId, human){
   if(needWallet()) return;
   buttons([]);
   toast("CONFIRM THE CLAIM IN YOUR WALLET",null,0);
-  withGas(W3.staking,"claimForToken",[tokenId],{}).then(function(tx){
+  requireNetwork().then(function(){
+    return withGas(W3.staking,"claimForToken",[tokenId],{});
+  }).then(function(tx){
     return waitFor(tx,"CYCLE CLAIM");
   }).then(function(){
     toast("CONFIRM THE PAYOUT IN YOUR WALLET",null,0);
@@ -6087,7 +6338,9 @@ function doClaim(cat){
   }
   buttons([]);
   toast("CONFIRM THE CLAIM IN YOUR WALLET",null,0);
-  withGas(W3.staking,"claimRewards",[boothToChain(cat)],{}).then(function(tx){
+  requireNetwork().then(function(){
+    return withGas(W3.staking,"claimRewards",[boothToChain(cat)],{});
+  }).then(function(tx){
     return waitFor(tx,"CLAIM");
   }).then(function(){
     toast("REWARD SENT TO YOUR WALLET","ok");
@@ -6114,7 +6367,9 @@ function doClaimAll(){
   }
   buttons([]);
   toast("CONFIRM THE CLAIM IN YOUR WALLET",null,0);
-  withGas(W3.staking,"claimAllRewards",[],{}).then(function(tx){
+  requireNetwork().then(function(){
+    return withGas(W3.staking,"claimAllRewards",[],{});
+  }).then(function(tx){
     return waitFor(tx,"CLAIM");
   }).then(function(){
     toast("ALL REWARDS SENT","ok");
@@ -6128,7 +6383,9 @@ function doUnstake(tokenId, idx){
   buttons([]);
   log("sys","Signing for the release of certificate #"+tokenId+".");
   toast("CONFIRM THE RELEASE IN YOUR WALLET",null,0);
-  withGas(W3.staking,"unstake",[tokenId],{}).then(function(tx){
+  requireNetwork().then(function(){
+    return withGas(W3.staking,"unstake",[tokenId],{});
+  }).then(function(tx){
     return waitFor(tx,"RELEASE");
   }).then(function(){
     sndStamp();
@@ -6431,6 +6688,10 @@ function patchPanels(){
     var extra=[];
     if(!W3.address){
       extra.push({label:"CONNECT WALLET TO DEPOSIT",gold:true,big:true,fn:openWalletModal});
+    } else if(networkWarn()){
+      extra.push({label:"WRONG NETWORK  -  SWITCH TO ROBINHOOD CHAIN",gold:true,big:true,
+        fn:function(){ requireNetwork().then(function(){ counterButtons(idx); })
+          .catch(function(){ toast("SWITCH YOUR WALLET TO ROBINHOOD CHAIN","err",6000); }); }});
     } else {
       var own=(W3.myTokens[idx]||[]).length;
       if(marketIsOpenNow()){
@@ -6913,6 +7174,10 @@ function boot(){
 }
 
 W3.api = {
+  requireNetwork:requireNetwork, networkWarn:networkWarn, currentWalletChain:currentWalletChain,
+  approveOne:approveOne, offerApproval:offerApproval,
+  approvalHint:approvalHint, validatorHint:validatorHint,
+  diagnoseStake:diagnoseStake, simulateStake:simulateStake, decodeRevert:decodeRevert,
   closedHoldingsPanel:closedHoldingsPanel,
   withTimeout:withTimeout, rpcHealthNote:rpcHealthNote,
   marketClosedPanel:marketClosedPanel, feePanel:feePanel, marketOpensText:marketOpensText,
