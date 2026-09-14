@@ -4938,6 +4938,37 @@ function withTimeout(promise, ms, label){
   });
 }
 
+function rpcRaw(method, params){
+  var attempts=0;
+  function tryOnce(){
+    var url=rpcUrl();
+    var call=fetch(url,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({jsonrpc:"2.0",id:Date.now(),method:method,params:params||[]})
+    }).then(function(r){
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return r.json();
+    }).then(function(j){
+      if(j.error){
+        var err=new Error(j.error.message||"rpc error");
+        err.data=j.error.data;
+        err.code=j.error.code;
+        throw err;
+      }
+      return j.result;
+    });
+    return withTimeout(call, 9000, method).catch(function(err){
+      if(err && err.data!==undefined) throw err;
+      attempts++;
+      rotateRpc();
+      if(attempts<Math.min(RPC_URLS.length,8)) return tryOnce();
+      throw err;
+    });
+  }
+  return tryOnce();
+}
+
 function rpc(method, params){
   var attempts=0;
   var limit=Math.min(RPC_URLS.length,12);
@@ -5568,6 +5599,46 @@ function txError(e){
   return m;
 }
 
+var CUSTOM_ERRORS = {
+  "0x177e802f":{ name:"ERC721InsufficientApproval", args:["address","uint256"],
+    say:function(a){ return "The collection says the vault is not approved to move token #"+a[1]+"."; } },
+  "0x7e273289":{ name:"ERC721NonexistentToken", args:["uint256"],
+    say:function(a){ return "Token #"+a[0]+" does not exist on the collection."; } },
+  "0x64283d7b":{ name:"ERC721IncorrectOwner", args:["address","uint256","address"],
+    say:function(a){ return "Token #"+a[1]+" is not held by that wallet any more."; } },
+  "0x89c62b64":{ name:"ERC721InvalidOwner", args:["address"],
+    say:function(){ return "The collection rejected the owner address."; } },
+  "0x73c6ac6e":{ name:"ERC721InvalidSender", args:["address"],
+    say:function(){ return "The collection rejected the sender address."; } },
+  "0x64a0ae92":{ name:"ERC721InvalidReceiver", args:["address"],
+    say:function(){ return "The collection refuses to send the token to the vault address."; } },
+  "0xa9fbf51f":{ name:"ERC721InvalidApprover", args:["address"],
+    say:function(){ return "The collection rejected the approval."; } },
+  "0x5b08ba18":{ name:"ERC721InvalidOperator", args:["address"],
+    say:function(){ return "The collection will not accept the vault as an operator."; } },
+  "0xede71dcc":{ name:"OperatorNotAllowed", args:["address"],
+    say:function(){ return "A transfer filter on the collection is blocking the vault."; } },
+  "0x4e487b71":{ name:"Panic", args:["uint256"],
+    say:function(a){ return "The contract hit an internal panic (code "+a[0]+")."; } }
+};
+
+function decodeCustomError(data){
+  if(!data || typeof data!=="string") return null;
+  var hx = data.indexOf("0x")===0 ? data : "0x"+data;
+  if(hx.length<10) return null;
+  var sel=hx.slice(0,10).toLowerCase();
+  var def=CUSTOM_ERRORS[sel];
+  if(!def) return null;
+  var out={ name:def.name, selector:sel, text:def.name };
+  try{
+    var vals=W3.ethers.utils.defaultAbiCoder.decode(def.args,"0x"+hx.slice(10));
+    var plain=vals.map(function(v){ return v && v.toString ? v.toString() : String(v); });
+    out.values=plain;
+    out.text=def.say(plain);
+  }catch(e){}
+  return out;
+}
+
 function decodeRevert(data){
   if(!data || typeof data!=="string") return null;
   var hex=data.indexOf("0x")===0?data.slice(2):data;
@@ -5582,12 +5653,14 @@ function decodeRevert(data){
 function simulateStake(tokenId){
   var fee = W3.depositFee || W3.ethers.utils.parseEther("0.0005");
   var data = W3.readIface.encodeFunctionData("stake",[tokenId]);
-  return rpc("eth_call",[{
+  return rpcRaw("eth_call",[{
     to:STAKING_ADDRESS, from:W3.address, data:data,
     value:W3.ethers.utils.hexValue(fee)
   },"latest"]).then(function(){ return null; })
    .catch(function(e){
      var msg=(e && e.message) || "";
+     var direct=reasonFromError(e);
+     if(direct) return direct;
      var m=msg.match(/0x08c379a0[0-9a-fA-F]*/);
      if(m){
        var r=decodeRevert(m[0]);
@@ -5663,6 +5736,7 @@ function approveOne(tokenId, idx){
 
 function offerApproval(tokenId, idx){
   log("a","The vault is not approved to move your certificates yet. Give permission once and every deposit after this goes straight through.");
+  W3.approved=false;
   buttons([
     {label:"APPROVE THE VAULT",gold:true,big:true,fn:function(){
       doApprove().then(function(){
@@ -5862,10 +5936,28 @@ function withGas(contract, method, args, overrides){
   });
 }
 
+function rawDataFrom(e){
+  if(!e) return null;
+  var d = e.data || (e.error && e.error.data);
+  if(d && typeof d==="object") d = d.data || d.originalError && d.originalError.data;
+  if(typeof d==="string" && d.indexOf("0x")===0) return d;
+  var msg=(e.message||"")+" "+JSON.stringify(e.data||"")+" "+((e.error&&e.error.message)||"");
+  var m=msg.match(/0x[0-9a-fA-F]{8,}/);
+  return m ? m[0] : null;
+}
+
 function reasonFromError(e){
   var msg=(e && e.message) || "";
+  var data=rawDataFrom(e);
+
+  if(data){
+    var r=decodeRevert(data);
+    if(r) return r;
+    var c=decodeCustomError(data);
+    if(c) return c.text+"  ["+c.name+"]";
+  }
   var m=msg.match(/0x08c379a0[0-9a-fA-F]*/);
-  if(m){ var r=decodeRevert(m[0]); if(r) return r; }
+  if(m){ var r2=decodeRevert(m[0]); if(r2) return r2; }
   var q=msg.match(/execution reverted:?\s*"?([^"\n]{3,90})"?/i);
   if(q && q[1] && q[1].trim().length>2) return q[1].trim();
   return null;
@@ -5884,7 +5976,7 @@ function replayFailedTx(hash){
     var block = tx.blockNumber || "latest";
 
     function at(blockTag){
-      return rpc("eth_call",[call, blockTag]).then(function(){ return "__OK__"; })
+      return rpcRaw("eth_call",[call, blockTag]).then(function(){ return "__OK__"; })
         .catch(function(e){ return reasonFromError(e) || null; });
     }
 
@@ -5923,6 +6015,13 @@ function explainOnChainFailure(hash, tokenId, idx){
     }
 
     var ranOut = !!(used && limit && used.mul(100).div(limit).gte(97));
+    if(reason && /ERC721InsufficientApproval|not approved to move|InvalidOperator|OperatorNotAllowed/i.test(reason)){
+      log("a","The collection has not given the vault permission to move this certificate.");
+      log("sys","The chain reported: "+reason);
+      offerApproval(tokenId, idx);
+      return true;
+    }
+
     if(ranOut || (info.replaySucceeded && !reason)){
       var next=Math.min(2400000, Math.round((limit?limit.toNumber():480000)*2.5));
       W3.gasBoost=Math.max(W3.gasBoost||1, next/480000);
@@ -6085,13 +6184,11 @@ function doStake(tokenId, idx){
         "CONTRACT_PAUSED","UNSTAKING_PAUSED","CLAIMING_PAUSED","REENTRANT"];
       if(NAMED.indexOf(reason)>=0) throw new Error(reason);
 
-      return approvalState(tokenId).then(function(appr){
-        if(appr && appr.all===false && appr.one===false){
-          throw new Error("APPROVAL_MISSING");
-        }
-        log("sys","The check was inconclusive, so the house will send it with its own gas limit.");
-        return null;
-      });
+      if(/ERC721InsufficientApproval|not approved|InvalidOperator|OperatorNotAllowed/i.test(reason)){
+        throw new Error("APPROVAL_MISSING");
+      }
+      log("sys","Dry run says: "+reason);
+      throw new Error(reason);
     });
   }).then(function(){
     var fee = W3.depositFee || W3.ethers.utils.parseEther("0.0005");
@@ -7447,6 +7544,7 @@ function boot(){
 }
 
 W3.api = {
+  decodeCustomError:decodeCustomError, rawDataFrom:rawDataFrom, rpcRaw:rpcRaw,
   verifyApprovalOnChain:verifyApprovalOnChain,
   replayFailedTx:replayFailedTx, explainOnChainFailure:explainOnChainFailure, receiptGas:receiptGas,
   estimateOnOurRpc:estimateOnOurRpc,
