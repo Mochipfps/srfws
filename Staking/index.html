@@ -5344,7 +5344,9 @@ function connectWith(announced){
     if(e && e.code===4001) m="You rejected the connection request.";
     if(e && e.code===-32002) m="Your wallet is already asking you to connect. Open the wallet and approve it there.";
     if(e && e.code===-32603) m="Your wallet reported an internal error. Unlock it, then try again.";
-    if(/JSON-RPC|Internal JSON|rpc error|network error|Failed to fetch/i.test(m))
+    if(/cannot estimate gas|UNPREDICTABLE_GAS_LIMIT/i.test(m))
+    m="The wallet could not measure the gas. The house used its own limit, so try once more.";
+  if(/JSON-RPC|Internal JSON|rpc error|network error|Failed to fetch/i.test(m))
       m="Your wallet could not reach the network. Switch it to Robinhood Chain, or change its RPC, then try again.";
     if(/User denied|denied transaction|rejected/i.test(m)) m="You rejected the request in your wallet.";
     walletError(m);
@@ -5790,29 +5792,64 @@ function requireNetwork(){
   });
 }
 
+var GAS_FALLBACK = {
+  stake: 480000,
+  stakeMany: 900000,
+  unstake: 380000,
+  unstakeMany: 800000,
+  claimForToken: 260000,
+  claimForTokens: 600000,
+  claimRewards: 240000,
+  claimAllRewards: 520000,
+  setApprovalForAll: 120000,
+  approve: 110000
+};
+
+var NAMED_REVERTS = /CATEGORY_NOT_SET|MARKET_CLOSED_TODAY|ALREADY_STAKED|STILL_LOCKED|NOT_TOKEN_OWNER|FEE_TOO_LOW|NOTHING_TO_CLAIM|NOTHING_DUE_YET|TRANSFER_BLOCKED|NOT_STAKER|NOT_STAKED|REENTRANT|STAKING_PAUSED|UNSTAKING_PAUSED|CLAIMING_PAUSED|CONTRACT_PAUSED|NO_REWARDS_IN_RESERVE|REWARD_TOKEN_NOT_SET/;
+
+function estimateOnOurRpc(contract, method, args, ov){
+  var E=W3.ethers;
+  var data, to;
+  try{
+    data=contract.interface.encodeFunctionData(method, args);
+    to=contract.address;
+  }catch(e){
+    return Promise.reject(new Error("ENCODE_FAILED"));
+  }
+  var call={ from:W3.address, to:to, data:data };
+  if(ov && ov.value){
+    try{ call.value=E.utils.hexValue(ov.value); }catch(e){}
+  }
+  return rpc("eth_estimateGas",[call]).then(function(hex){
+    return E.BigNumber.from(hex);
+  });
+}
+
 function withGas(contract, method, args, overrides){
   var ov=overrides||{};
-  return contract.estimateGas[method].apply(null, args.concat([ov]))
-    .then(function(est){
-      var bumped=est.mul(140).div(100);
-      var o={};
-      for(var k in ov) o[k]=ov[k];
-      o.gasLimit=bumped;
-      return contract[method].apply(null, args.concat([o]));
-    })
-    .catch(function(err){
-      var msg=(err && (err.message||"")) + ((err&&err.data&&err.data.message)||"");
-      var inner=(err && err.error && err.error.data) || (err && err.data);
-      var reason=decodeRevert(typeof inner==="string"?inner:(inner&&inner.data));
-      if(reason){ err.rmReason=reason; throw err; }
-      if(/revert|execution reverted|CATEGORY_NOT_SET|MARKET_CLOSED|ALREADY_STAKED|STILL_LOCKED|NOT_TOKEN_OWNER|FEE_TOO_LOW|NOTHING_TO_CLAIM|NOTHING_DUE_YET|TRANSFER_BLOCKED|PAUSED/i.test(msg)){
-        throw err;
-      }
-      var o2={};
-      for(var k2 in ov) o2[k2]=ov[k2];
-      o2.gasLimit=W3.ethers.BigNumber.from(600000);
-      return contract[method].apply(null, args.concat([o2]));
-    });
+  var E=W3.ethers;
+  var fallback=E.BigNumber.from(GAS_FALLBACK[method] || 500000);
+
+  function send(gasLimit){
+    var o={};
+    for(var k in ov) o[k]=ov[k];
+    o.gasLimit=gasLimit;
+    return contract[method].apply(null, args.concat([o]));
+  }
+
+  return estimateOnOurRpc(contract, method, args, ov).then(function(est){
+    var bumped=est.mul(150).div(100);
+    if(bumped.lt(fallback.div(3))) bumped=fallback.div(3);
+    return send(bumped);
+  }).catch(function(err){
+    var msg=(err && (err.message||"")) + ((err && err.data && err.data.message)||"");
+    var inner=(err && err.error && err.error.data) || (err && err.data);
+    var reason=decodeRevert(typeof inner==="string"?inner:(inner&&inner.data));
+    if(reason && NAMED_REVERTS.test(reason)){ err.rmReason=reason; throw err; }
+    if(NAMED_REVERTS.test(msg)) throw err;
+    log("sys","Gas could not be measured, so a safe limit is being used instead.");
+    return send(fallback);
+  });
 }
 
 function waitFor(tx, label){
@@ -5919,7 +5956,7 @@ function doStake(tokenId, idx){
         if(appr && appr.all===false && appr.one===false){
           throw new Error("APPROVAL_MISSING");
         }
-        log("sys","The dry run was not conclusive. Sending it to the chain for real.");
+        log("sys","The check was inconclusive, so the house will send it with its own gas limit.");
         return null;
       });
     });
@@ -5973,7 +6010,10 @@ function deepDiagnose(tokenId, idx, raw){
         return;
       }
       if(reason){ log("a",reason); toast(reason,"err",7000); }
-      else { log("a","The vault gave no reason. Try once more in a moment, and if it happens again send me the certificate number."); }
+      else {
+        log("a","The vault gave no reason, which usually means the wallet could not talk to the chain rather than anything being wrong with your certificate.");
+        log("a","Press TRY AGAIN. The house will send it with its own gas limit this time.");
+      }
       if(raw && !/^(REVERTED|APPROVAL_MISSING)$/.test(raw)){
         log("sys","Chain message: "+String(raw).slice(0,160));
       } else if(W3.lastRevertRaw){
@@ -7260,6 +7300,7 @@ function boot(){
 }
 
 W3.api = {
+  estimateOnOurRpc:estimateOnOurRpc,
   simulateNftPull:simulateNftPull, approvalState:approvalState, deepDiagnose:deepDiagnose,
   requireNetwork:requireNetwork, networkWarn:networkWarn, currentWalletChain:currentWalletChain,
   approveOne:approveOne, offerApproval:offerApproval,
