@@ -4344,9 +4344,30 @@ function catFromSheet(id){
 
 function catFromMetadata(id){
   var n = typeof id==="number" ? id : parseInt(id,10);
+  var onchain = W3.chainCats ? W3.chainCats[n] : undefined;
+  if(onchain!==undefined && onchain>=0) return onchain;
   var live = W3.tickerCache ? W3.tickerCache[n] : undefined;
   if(live!==undefined && live>=0) return live;
   return catFromSheet(n);
+}
+
+function loadChainCategories(ids){
+  if(!ids || !ids.length) return Promise.resolve({});
+  if(!W3.chainCats) W3.chainCats={};
+  var need=ids.filter(function(id){ return W3.chainCats[id]===undefined; });
+  if(!need.length) return Promise.resolve(W3.chainCats);
+  var chunks=[];
+  for(var i=0;i<need.length;i+=60) chunks.push(need.slice(i,i+60));
+  return Promise.all(chunks.map(function(chunk){
+    return readCall(W3.readIface,STAKING_ADDRESS,"categoriesOfBatch",[chunk])
+      .then(function(res){
+        var cats=res[0];
+        chunk.forEach(function(id,i2){
+          var c=Number(cats[i2]);
+          if(c>=0 && c<=5) W3.chainCats[id]=c;
+        });
+      }).catch(function(){});
+  })).then(function(){ return W3.chainCats; });
 }
 
 function symbolOfToken(id){
@@ -4414,6 +4435,7 @@ var W3 = {
   provider:null, signer:null, staking:null, nft:null, readIface:null, nftIface:null,
   approved:false, depositFee:null, rpcIndex:0,
   myTokens:{}, myStaked:[], pending:[0,0,0,0,0,0], busy:false, chainMismatch:[], lookupMode:false,
+  chainCats:{}, tickerCache:{},
   providers:[], selected:null, lastRefresh:0
 };
 window.RM_WEB3 = W3;
@@ -4477,7 +4499,15 @@ function buildUI(){
   var nav=document.getElementById("nav");
   var b=el("button",null,"CONNECT WALLET");
   b.id="wcBtn";
-  b.onclick=function(){ W3.address ? accountPanel() : openWalletModal(); };
+  b.onclick=function(){
+    try{
+      if(W3.address){ accountPanel(); return; }
+      openWalletModal();
+    }catch(err){
+      try{ toast("WALLET PANEL ERROR - RELOAD THE PAGE","err",6000); }catch(e2){}
+      console.log("connect button error",err);
+    }
+  };
   nav.appendChild(b);
 
   var ov=el("div"); ov.id="wmOverlay";
@@ -4510,6 +4540,7 @@ function buildUI(){
 
 function discoverProviders(){
   W3.providers=[];
+  collectLegacyProviders();
   window.addEventListener("eip6963:announceProvider", function(ev){
     var d=ev.detail;
     if(!d || !d.provider) return;
@@ -4522,7 +4553,8 @@ function discoverProviders(){
   window.dispatchEvent(new Event("eip6963:requestProvider"));
 
   setTimeout(function(){
-    if(W3.providers.length===0 && window.ethereum){
+    collectLegacyProviders();
+    if(false){
       var legacy = window.ethereum.providers && window.ethereum.providers.length
         ? window.ethereum.providers : [window.ethereum];
       legacy.forEach(function(p,i){
@@ -4693,11 +4725,50 @@ function toggleQr(){
 }
 
 function openWalletModal(){
-  document.getElementById("wmErr").style.display="none";
-  window.dispatchEvent(new Event("eip6963:requestProvider"));
+  var errBox=document.getElementById("wmErr");
+  if(errBox) errBox.style.display="none";
+  try{ window.dispatchEvent(new Event("eip6963:requestProvider")); }catch(e){}
+  collectLegacyProviders();
   renderQrSection();
   renderWalletRows();
   document.getElementById("wmOverlay").classList.add("on");
+  if(!W3.ready){
+    walletError("Still loading the wallet library. Pick your wallet anyway and it will connect as soon as it finishes.");
+    loadEthers().then(function(E){
+      if(W3.ready) return;
+      W3.ethers=E;
+      W3.readIface=new E.utils.Interface(STAKING_ABI);
+      W3.nftIface=new E.utils.Interface(NFT_ABI);
+      W3.ready=true;
+      patchPanels();
+      walletErrorClear();
+      refreshTreasury();
+    }).catch(function(){
+      walletError("The wallet library could not load. Check your connection or any blocker, then reload.");
+    });
+  }
+}
+
+function collectLegacyProviders(){
+  if(!window.ethereum) return;
+  var legacy = window.ethereum.providers && window.ethereum.providers.length
+    ? window.ethereum.providers : [window.ethereum];
+  legacy.forEach(function(p,i){
+    var already=W3.providers.some(function(x){ return x.provider===p; });
+    if(already) return;
+    var name = p.isMetaMask ? "MetaMask"
+      : p.isRabby ? "Rabby"
+      : p.isCoinbaseWallet ? "Coinbase Wallet"
+      : (p.isOkxWallet || p.isOKExWallet) ? "OKX Wallet"
+      : p.isPhantom ? "Phantom"
+      : p.isKeplr ? "Keplr"
+      : p.isBraveWallet ? "Brave Wallet"
+      : (p.isTrust || p.isTrustWallet) ? "Trust Wallet"
+      : p.isBitKeep ? "Bitget Wallet"
+      : "Browser Wallet";
+    W3.providers.push({ info:{ uuid:"legacy-"+i, name:name, rdns:"legacy."+i, icon:null },
+      provider:p });
+  });
 }
 function closeWalletModal(){
   document.getElementById("wmOverlay").classList.remove("on");
@@ -4878,7 +4949,7 @@ function loadOwnedTokens(){
     ids=(ids||[]).filter(function(x){ return typeof x==="number" && x>0; });
     W3.ownedIds=ids;
     if(!ids.length) return { byCat:{}, ids:[], unknown:[] };
-    return fetchTickersFor(ids).then(function(){ return ids; });
+    return loadChainCategories(ids).then(function(){ return ids; });
   }).then(function(ids){
     if(!ids || !ids.length) return { byCat:{}, ids:[], unknown:[] };
     var byCat={}, unknown=[];
@@ -4888,29 +4959,30 @@ function loadOwnedTokens(){
       if(!byCat[c]) byCat[c]=[];
       byCat[c].push(id);
     });
-    verifyChainCategories(ids);
     if(!unknown.length) return { byCat:byCat, ids:ids, unknown:[] };
-    return readCall(W3.readIface,STAKING_ADDRESS,"categoriesOfBatch",[unknown])
-      .then(function(res){
-        var cats=res[0];
-        unknown.forEach(function(id,i){
-          var c=Number(cats[i]);
-          if(c<0) return;
-          if(!byCat[c]) byCat[c]=[];
-          byCat[c].push(id);
-        });
-        return { byCat:byCat, ids:ids, unknown:[] };
-      }).catch(function(){ return { byCat:byCat, ids:ids, unknown:unknown }; });
+    return fetchTickersFor(unknown).then(function(){
+      var still=[];
+      unknown.forEach(function(id){
+        var c=catFromMetadata(id);
+        if(c<0){ still.push(id); return; }
+        if(!byCat[c]) byCat[c]=[];
+        byCat[c].push(id);
+      });
+      return { byCat:byCat, ids:ids, unknown:still };
+    }).catch(function(){ return { byCat:byCat, ids:ids, unknown:unknown }; });
   }).catch(function(){ return { byCat:{}, ids:[], unknown:[] }; });
 }
 
 function readStake(id, r){
   var chainCat=Number(r[1]);
+  if(chainCat>=0 && chainCat<=5){
+    if(!W3.chainCats) W3.chainCats={};
+    W3.chainCats[id]=chainCat;
+  }
   var meta=catFromMetadata(id);
-  noteMismatch(id, chainCat);
   return {
     id:id,
-    cat: meta>=0?meta:chainCat,
+    cat: chainCat>=0?chainCat:meta,
     chainCat:chainCat,
     start:Number(r[2]),
     unlock:Number(r[3]),
@@ -4971,17 +5043,18 @@ function refreshChainState(){
     W3.approved=r[3][0];
     W3.myTokens=r[4].byCat;
     W3.lastRefresh=Date.now();
-    if(W3.myStaked && W3.myStaked.length) fetchTickersFor(W3.myStaked);
+    if(W3.myStaked && W3.myStaked.length) loadChainCategories(W3.myStaked);
     loadTimerRows();
-    var m={};
-    W3.stakedByCat={};
-    W3.stakedCats={};
-    W3.myStaked.forEach(function(id){
-      var c=catFromMetadata(id);
-      if(c>=0){ m[c]=(m[c]||0)+1; W3.stakedCats[id]=c; }
+    loadChainCategories(W3.myStaked).then(function(){
+      var m={};
+      W3.stakedCats={};
+      W3.myStaked.forEach(function(id){
+        var c=catFromMetadata(id);
+        if(c>=0){ m[c]=(m[c]||0)+1; W3.stakedCats[id]=c; }
+      });
+      W3.stakedByCat=m;
+      updateHoldingsBoard();
     });
-    W3.stakedByCat=m;
-    updateHoldingsBoard();
   }).catch(function(e){
     console.log("state refresh failed",e);
   });
@@ -5007,9 +5080,36 @@ function refreshTreasury(){
 }
 
 function connectWith(announced){
-  var prov=announced.provider;
+  var prov=announced && announced.provider;
   walletErrorClear();
-  prov.request({method:"eth_requestAccounts"}).then(function(accounts){
+
+  if(!prov || typeof prov.request!=="function"){
+    walletError("That wallet did not expose a connection. Open the page inside the wallet's own browser and try again.");
+    return Promise.resolve(false);
+  }
+
+  if(!W3.ready){
+    walletError("Finishing the wallet library, one moment...");
+    return loadEthers().then(function(E){
+      W3.ethers=E;
+      if(!W3.readIface){
+        W3.readIface=new E.utils.Interface(STAKING_ABI);
+        W3.nftIface=new E.utils.Interface(NFT_ABI);
+      }
+      if(!W3.ready){ W3.ready=true; patchPanels(); }
+      walletErrorClear();
+      return connectWith(announced);
+    }).catch(function(){
+      walletError("The wallet library could not load. Reload the page and try again.");
+    });
+  }
+
+  var guard=setTimeout(function(){
+    walletError("Your wallet has not answered. Open it and approve the request, then try again.");
+  }, 20000);
+
+  return prov.request({method:"eth_requestAccounts"}).then(function(accounts){
+    clearTimeout(guard);
     if(!accounts || !accounts.length) throw new Error("No account returned");
     W3.selected=announced;
     W3.eip1193=prov;
@@ -5062,9 +5162,11 @@ function connectWith(announced){
 
     return true;
   }).catch(function(e){
+    clearTimeout(guard);
     var m=(e && e.message) || "Connection refused";
     if(e && e.code===4001) m="You rejected the connection request.";
     if(e && e.code===-32002) m="Your wallet is already asking you to connect. Open the wallet and approve it there.";
+    if(e && e.code===-32603) m="Your wallet reported an internal error. Unlock it, then try again.";
     walletError(m);
     toast(m,"err",6000);
   });
@@ -6108,14 +6210,33 @@ function patchPanels(){
   };
 }
 
+var ETHERS_CDNS=[
+  "https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js",
+  "https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js",
+  "https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js",
+  "https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"
+];
+
 function loadEthers(){
   return new Promise(function(resolve,reject){
     if(window.ethers) return resolve(window.ethers);
-    var s=document.createElement("script");
-    s.src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js";
-    s.onload=function(){ resolve(window.ethers); };
-    s.onerror=function(){ reject(new Error("ethers failed to load")); };
-    document.head.appendChild(s);
+    var i=0;
+    function tryNext(){
+      if(i>=ETHERS_CDNS.length){
+        reject(new Error("ethers failed to load from every source"));
+        return;
+      }
+      var el2=document.createElement("script");
+      el2.src=ETHERS_CDNS[i++];
+      el2.async=true;
+      el2.onload=function(){
+        if(window.ethers) resolve(window.ethers);
+        else tryNext();
+      };
+      el2.onerror=function(){ tryNext(); };
+      document.head.appendChild(el2);
+    }
+    tryNext();
   });
 }
 
@@ -6255,8 +6376,8 @@ function handleLookup(text){
     log("a","Give me a number between 1 and 4242.");
     return;
   }
-  log("sys","Reading the certificate straight from the collection.");
-  fetchTickersFor([id]).then(function(){
+  log("sys","Reading the certificate from the vault contract.");
+  loadChainCategories([id]).then(function(){
     var c=catFromMetadata(id);
     var sheet=catFromSheet(id);
     if(c<0){ log("a","I have no record of token #"+id+"."); return; }
@@ -6416,6 +6537,8 @@ function boot(){
 }
 
 W3.api = {
+  collectLegacyProviders:collectLegacyProviders, loadEthers:loadEthers,
+  loadChainCategories:loadChainCategories,
   doClaimCycle:doClaimCycle,
   timerPanel:timerPanel, loadTimerRows:loadTimerRows, refreshTimerPlate:refreshTimerPlate,
   readStake:readStake, fmtLeft:fmtLeft,
