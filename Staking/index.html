@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Royal Mechanica Exchange Hall</title>
+<title>Royal Mechanica — Exchange Hall</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -3545,7 +3545,76 @@ function secondTick(){
   document.getElementById("chipStat").classList.toggle("open",op);
 }
 
+function applyQuote(sym,j){
+  if(!j||typeof j.c!=="number"||j.c===0) return false;
+  var d=live[sym], before=d.price;
+  d.prev=before; d.price=j.c;
+  if(typeof j.pc==="number"&&j.pc>0) d.pc=j.pc;
+  if(typeof j.h==="number"&&j.h>0) d.high=j.h;
+  if(typeof j.l==="number"&&j.l>0) d.low=j.l;
+  if(typeof j.o==="number"&&j.o>0) d.open=j.o;
+  if(typeof j.dp==="number") d.dp=j.dp;
+  var n=new Date();
+  d.updated=pad(n.getHours())+":"+pad(n.getMinutes())+":"+pad(n.getSeconds());
+  if(before!==null&&before!==d.price){
+    moves.push({time:d.updated,sym:sym,price:d.price,diff:d.price-before});
+    if(moves.length>40) moves.shift();
+  }
+  return true;
+}
+
+function yahooQuote(sym){
+  var bases=[
+    "https://query1.finance.yahoo.com/v8/finance/chart/",
+    "https://query2.finance.yahoo.com/v8/finance/chart/",
+    "https://api.allorigins.win/raw?url=" +
+      encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/")
+  ];
+  var i=0;
+  function tryOne(){
+    if(i>=bases.length) return Promise.resolve(null);
+    var url=bases[i++];
+    var full = url.indexOf("allorigins")>=0
+      ? url+encodeURIComponent(sym+"?interval=1d&range=5d")
+      : url+sym+"?interval=1d&range=5d";
+    return fetch(full).then(function(r){
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return r.json();
+    }).then(function(j){
+      var res=j&&j.chart&&j.chart.result&&j.chart.result[0];
+      var m=res&&res.meta;
+      if(!m||!(m.regularMarketPrice>0)) throw new Error("no quote");
+      return {
+        c:m.regularMarketPrice,
+        pc:m.chartPreviousClose||m.previousClose||0,
+        h:m.regularMarketDayHigh||0,
+        l:m.regularMarketDayLow||0,
+        o:m.regularMarketOpen||0
+      };
+    }).catch(function(){ return tryOne(); });
+  }
+  return tryOne();
+}
+
 function fetchQuotes(){
+  SYMS.forEach(function(sym){
+    fetch("https://finnhub.io/api/v1/quote?symbol="+sym+"&token="+API_KEY)
+      .then(function(r){
+        if(!r.ok) throw new Error("HTTP "+r.status);
+        return r.json();
+      })
+      .then(function(j){
+        if(!applyQuote(sym,j)) throw new Error("empty quote");
+      })
+      .catch(function(){
+        return yahooQuote(sym).then(function(q){
+          if(q) applyQuote(sym,q);
+        });
+      });
+  });
+}
+
+function fetchQuotesLegacy(){
   SYMS.forEach(function(sym){
     fetch("https://finnhub.io/api/v1/quote?symbol="+sym+"&token="+API_KEY)
       .then(function(r){return r.json();})
@@ -6082,18 +6151,59 @@ function marketClosedPanel(idx){
   log("sys","The counter shutter is down.");
   log("a","I cannot take a deposit right now. The house only accepts certificates while the New York session is trading, 9:30 to 16:00 Eastern, Monday to Friday.");
   log("a","The session "+marketOpensText().toLowerCase()+". Come back then and this counter opens on its own, with no refresh needed.");
-  if(W3.counts){
-    log("sys","$"+b.sym+" currently holds "+W3.counts[idx]+" certificate"
-      +(W3.counts[idx]===1?"":"s")+" in the vault.");
-  }
-  var btns=[];
+
+  var own=(W3.myTokens[idx]||[]);
   var mine=(W3.stakedByCat&&W3.stakedByCat[idx])||0;
+
+  if(own.length){
+    var idsTxt=own.slice(0,10).map(function(x){ return "#"+x; }).join("  ");
+    if(own.length>10) idsTxt+="  +"+(own.length-10)+" more";
+    log("a","You are holding "+own.length+" $"+b.sym+" certificate"
+      +(own.length===1?"":"s")+" for this counter: "+idsTxt+".");
+    log("a","They are ready to go in. The moment the bell rings I will take "
+      +(own.length===1?"it":"them")+" straight into custody.");
+  } else {
+    log("a","You are not holding any $"+b.sym+" certificates right now.");
+  }
+
+  if(mine>0){
+    log("sys","You already have "+mine+" $"+b.sym+" certificate"+(mine===1?"":"s")+" in the vault.");
+  }
+  if(W3.counts){
+    log("sys","This counter holds "+W3.counts[idx]+" $"+b.sym+" certificate"
+      +(W3.counts[idx]===1?"":"s")+" in total.");
+  }
+
+  var btns=[];
+  if(own.length){
+    btns.push({label:"MY "+own.length+" $"+b.sym+"  -  WAITING FOR THE BELL",
+      gold:true,big:true,fn:function(){ closedHoldingsPanel(idx); }});
+  }
   if(mine>0){
     btns.push({label:"RELEASE FROM THE VAULT",big:true,fn:function(){ liveUnstakeList(idx); }});
   }
   btns.push({label:"WHY THE 0.0005 ETH FEE?",fn:function(){ feePanel(idx); }});
   btns.push({label:"BACK",big:true,fn:function(){ counterButtons(idx); }});
   buttons(btns);
+}
+
+function closedHoldingsPanel(idx){
+  var b=BOOTHS[idx];
+  var own=(W3.myTokens[idx]||[]);
+  window.currentAgent=b.agent;
+  setPanel(b.agent+" &#183; $"+b.sym,"YOUR CERTIFICATES FOR THIS COUNTER",hex(b.col),false);
+  document.getElementById("pLog").innerHTML="";
+  log("sys","Wallet "+short(W3.address));
+  log("a","These are the $"+b.sym+" certificates you hold. Each one is accepted at this counter and nowhere else.");
+  own.slice(0,20).forEach(function(id){
+    log("sys","#"+id+"  $"+b.sym+"  -  ready to deposit");
+  });
+  if(own.length>20) log("sys","and "+(own.length-20)+" more.");
+  log("a","The window is shut for now. "+marketOpensText()+" and then each of these can go in.");
+  buttons([
+    {label:"BACK",gold:true,big:true,fn:function(){ marketClosedPanel(idx); }},
+    {label:"CLOSE",fn:closePanel}
+  ]);
 }
 
 function feePanel(idx){
@@ -6133,6 +6243,7 @@ function liveStakeList(idx){
     if(n>0) elsewhere.push({cat:c,count:n});
   }
 
+  if(!marketIsOpenNow()){ marketClosedPanel(idx); return; }
   if(!list.length && holdsNothing){
     log("a","This wallet holds no Royal Mechanica certificates at all yet.");
     log("a","Our collection trades on OpenSea. Buy a $"+b.sym+" piece there, bring it back to this counter, and I will take it into custody for you.");
@@ -6326,8 +6437,14 @@ function patchPanels(){
         extra.push({label:"DEPOSIT A $"+BOOTHS[idx].sym+" NFT"+(own?"  ("+own+")":""),
           gold:true,big:true,fn:function(){ liveStakeList(idx); }});
       } else {
-        extra.push({label:"DEPOSITS CLOSED  -  "+marketOpensText(),
-          big:true,fn:function(){ marketClosedPanel(idx); }});
+        var ownClosed=(W3.myTokens[idx]||[]).length;
+        if(ownClosed){
+          extra.push({label:"YOU HOLD "+ownClosed+" $"+BOOTHS[idx].sym+"  -  OPENS "+marketOpensText(),
+            gold:true,big:true,fn:function(){ marketClosedPanel(idx); }});
+        } else {
+          extra.push({label:"DEPOSITS CLOSED  -  "+marketOpensText(),
+            big:true,fn:function(){ marketClosedPanel(idx); }});
+        }
       }
       extra.push({label:"RELEASE FROM THE VAULT",big:true,fn:function(){ liveUnstakeList(idx); }});
       var amt=W3.pending[idx];
@@ -6796,6 +6913,7 @@ function boot(){
 }
 
 W3.api = {
+  closedHoldingsPanel:closedHoldingsPanel,
   withTimeout:withTimeout, rpcHealthNote:rpcHealthNote,
   marketClosedPanel:marketClosedPanel, feePanel:feePanel, marketOpensText:marketOpensText,
   loadCounterCounts:loadCounterCounts, computePool:computePool, refreshLiveBoard:refreshLiveBoard,
