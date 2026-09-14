@@ -4272,6 +4272,24 @@ var GROWTH_VAULT_WALLET = "0x0C0335D9CB8719fc8FB4712809389392f8bCdD00";
 var DAILY_SHARE_TO_HOLDERS = 0.80;
 var CHAIN_LABEL = "Robinhood Chain";
 
+var CHAIN_SYMS = ["AAPL","TSLA","NVDA","GOOGL","MSFT","AMZN"];
+
+function chainToBooth(c){
+  var n=Number(c);
+  if(!(n>=0) || n>5) return -1;
+  var sym=CHAIN_SYMS[n];
+  for(var i=0;i<SYMS.length;i++){ if(SYMS[i]===sym) return i; }
+  return -1;
+}
+
+function boothToChain(i){
+  var n=Number(i);
+  if(!(n>=0) || n>=SYMS.length) return -1;
+  var sym=SYMS[n];
+  for(var c=0;c<CHAIN_SYMS.length;c++){ if(CHAIN_SYMS[c]===sym) return c; }
+  return -1;
+}
+
 var RPC_URLS = [
 "https://robinhood-mainnet.g.alchemy.com/v2/alch_Ndk6ILf93LlGhR2tHXjti",
 "https://robinhood-mainnet.g.alchemy.com/v2/alch_0HNVu2BHAGapBjeVumBzk",
@@ -4339,7 +4357,8 @@ function catFromSheet(id){
   var n = typeof id==="number" ? id : parseInt(id,10);
   if(!(n>=0) || n>=CAT_MAP.length) return -1;
   var c=CAT_MAP.charCodeAt(n)-48;
-  return (c>=0 && c<=5) ? c : -1;
+  if(!(c>=0 && c<=5)) return -1;
+  return chainToBooth(c);
 }
 
 function catFromMetadata(id){
@@ -4363,8 +4382,8 @@ function loadChainCategories(ids){
       .then(function(res){
         var cats=res[0];
         chunk.forEach(function(id,i2){
-          var c=Number(cats[i2]);
-          if(c>=0 && c<=5) W3.chainCats[id]=c;
+          var b=chainToBooth(Number(cats[i2]));
+          if(b>=0) W3.chainCats[id]=b;
         });
       }).catch(function(){});
   })).then(function(){ return W3.chainCats; });
@@ -4974,16 +4993,17 @@ function loadOwnedTokens(){
 }
 
 function readStake(id, r){
-  var chainCat=Number(r[1]);
-  if(chainCat>=0 && chainCat<=5){
+  var rawCat=Number(r[1]);
+  var boothCat=chainToBooth(rawCat);
+  if(boothCat>=0 && r[7]){
     if(!W3.chainCats) W3.chainCats={};
-    W3.chainCats[id]=chainCat;
+    W3.chainCats[id]=boothCat;
   }
   var meta=catFromMetadata(id);
   return {
     id:id,
-    cat: chainCat>=0?chainCat:meta,
-    chainCat:chainCat,
+    cat: boothCat>=0?boothCat:meta,
+    chainCat:rawCat,
     start:Number(r[2]),
     unlock:Number(r[3]),
     cycles:Number(r[4]),
@@ -5038,7 +5058,13 @@ function refreshChainState(){
     loadOwnedTokens()
   ]).then(function(r){
     W3.depositFee=r[0][0];
-    W3.pending=r[1][0].map(function(x){ return x; });
+    var rawPending=r[1][0];
+    var mapped=[0,0,0,0,0,0];
+    for(var ci=0;ci<6;ci++){
+      var b=chainToBooth(ci);
+      if(b>=0) mapped[b]=rawPending[ci];
+    }
+    W3.pending=mapped;
     W3.myStaked=r[2][0].map(function(x){ return x.toNumber ? x.toNumber() : Number(x); });
     W3.approved=r[3][0];
     W3.myTokens=r[4].byCat;
@@ -5415,6 +5441,13 @@ function preflightStake(tokenId){
     if(r[1] && Number(r[1][0])<0){
       return { ok:false, why:"CATEGORY_NOT_SET" };
     }
+    if(r[1]){
+      var b=chainToBooth(Number(r[1][0]));
+      if(b>=0){
+        if(!W3.chainCats) W3.chainCats={};
+        W3.chainCats[tokenId]=b;
+      }
+    }
     var owner=r[2] && r[2][0] ? String(r[2][0]) : "";
     if(owner && owner!=="0x0000000000000000000000000000000000000000"
        && owner.toLowerCase()!==W3.address.toLowerCase()){
@@ -5541,7 +5574,7 @@ function liveVaultTheatre(idx, tokenId){
 function enterVaultLive(idx, tokenId){
   var sym=BOOTHS[idx].sym;
   setRoom("vault");
-  readCall(W3.readIface,STAKING_ADDRESS,"stakedPerCategory",[idx]).then(function(r){
+  readCall(W3.readIface,STAKING_ADDRESS,"stakedPerCategory",[boothToChain(idx)]).then(function(r){
     return r[0].toNumber ? r[0].toNumber() : Number(r[0]);
   }).catch(function(){ return 0; }).then(function(total){
     var per=101;
@@ -5732,7 +5765,7 @@ function claimBarLive(idx, tokenId, human){
     return waitFor(tx,"CYCLE CLAIM");
   }).then(function(){
     toast("CONFIRM THE PAYOUT IN YOUR WALLET",null,0);
-    return withGas(W3.staking,"claimRewards",[idx],{});
+    return withGas(W3.staking,"claimRewards",[boothToChain(idx)],{});
   }).then(function(tx){
     return waitFor(tx,"PAYOUT");
   }).then(function(res){
@@ -5863,7 +5896,7 @@ function doClaimCycle(tokenId, cat){
   }).then(function(){
     var have=W3.pending[cat];
     if(have && have.gt && have.gt(0)){
-      return withGas(W3.staking,"claimRewards",[cat],{}).then(function(tx){
+      return withGas(W3.staking,"claimRewards",[boothToChain(cat)],{}).then(function(tx){
         return waitFor(tx,"PAYOUT");
       }).then(function(){
         toast("REWARD SENT TO YOUR WALLET","ok");
@@ -5889,7 +5922,7 @@ function doClaim(cat){
   }
   buttons([]);
   toast("CONFIRM THE CLAIM IN YOUR WALLET",null,0);
-  withGas(W3.staking,"claimRewards",[cat],{}).then(function(tx){
+  withGas(W3.staking,"claimRewards",[boothToChain(cat)],{}).then(function(tx){
     return waitFor(tx,"CLAIM");
   }).then(function(){
     toast("REWARD SENT TO YOUR WALLET","ok");
@@ -6537,6 +6570,7 @@ function boot(){
 }
 
 W3.api = {
+  chainToBooth:chainToBooth, boothToChain:boothToChain,
   collectLegacyProviders:collectLegacyProviders, loadEthers:loadEthers,
   loadChainCategories:loadChainCategories,
   doClaimCycle:doClaimCycle,
