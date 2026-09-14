@@ -5798,8 +5798,8 @@ function requireNetwork(){
 }
 
 var GAS_FALLBACK = {
-  stake: 480000,
-  stakeMany: 900000,
+  stake: 900000,
+  stakeMany: 1600000,
   unstake: 380000,
   unstakeMany: 800000,
   claimForToken: 260000,
@@ -5834,8 +5834,9 @@ function withGas(contract, method, args, overrides){
   var ov=overrides||{};
   var E=W3.ethers;
   var boost=W3.gasBoost||1;
-  var fallback=E.BigNumber.from(Math.min(2400000,
-    Math.round((GAS_FALLBACK[method] || 500000) * boost)));
+  var base=GAS_FALLBACK[method] || 500000;
+  var fallback=E.BigNumber.from(Math.min(2400000, Math.round(base * boost)));
+  var floorGas=E.BigNumber.from(Math.min(2400000, Math.round(base * Math.max(1,boost) * 0.8)));
 
   function send(gasLimit){
     var o={};
@@ -5845,9 +5846,10 @@ function withGas(contract, method, args, overrides){
   }
 
   return estimateOnOurRpc(contract, method, args, ov).then(function(est){
-    var bumped=est.mul(150).div(100);
+    var bumped=est.mul(200).div(100);
     if(boost>1) bumped=bumped.mul(Math.round(boost*100)).div(100);
-    if(bumped.lt(fallback.div(3))) bumped=fallback.div(3);
+    if(bumped.lt(floorGas)) bumped=floorGas;
+    if(bumped.gt(E.BigNumber.from(2400000))) bumped=E.BigNumber.from(2400000);
     return send(bumped);
   }).catch(function(err){
     var msg=(err && (err.message||"")) + ((err && err.data && err.data.message)||"");
@@ -5860,23 +5862,41 @@ function withGas(contract, method, args, overrides){
   });
 }
 
+function reasonFromError(e){
+  var msg=(e && e.message) || "";
+  var m=msg.match(/0x08c379a0[0-9a-fA-F]*/);
+  if(m){ var r=decodeRevert(m[0]); if(r) return r; }
+  var q=msg.match(/execution reverted:?\s*"?([^"\n]{3,90})"?/i);
+  if(q && q[1] && q[1].trim().length>2) return q[1].trim();
+  return null;
+}
+
 function replayFailedTx(hash){
-  if(!hash) return Promise.resolve(null);
+  if(!hash) return Promise.resolve({});
   return rpc("eth_getTransactionByHash",[hash]).then(function(tx){
-    if(!tx) return null;
+    if(!tx) return {};
+    var E=W3.ethers;
+    var info={
+      gasLimit: tx.gas ? E.BigNumber.from(tx.gas) : null,
+      to: tx.to, from: tx.from
+    };
     var call={ from:tx.from, to:tx.to, data:tx.input, value:tx.value||"0x0" };
     var block = tx.blockNumber || "latest";
-    return rpc("eth_call",[call, block]).then(function(){
-      return "OUT_OF_GAS";
-    }).catch(function(e){
-      var msg=(e && e.message) || "";
-      var m=msg.match(/0x08c379a0[0-9a-fA-F]*/);
-      if(m){ var r=decodeRevert(m[0]); if(r) return r; }
-      var q=msg.match(/execution reverted:?\s*"?([^"\n]{3,90})"?/i);
-      if(q && q[1]) return q[1].trim();
-      return null;
+
+    function at(blockTag){
+      return rpc("eth_call",[call, blockTag]).then(function(){ return "__OK__"; })
+        .catch(function(e){ return reasonFromError(e) || null; });
+    }
+
+    return at(block).then(function(r1){
+      if(r1 && r1!=="__OK__"){ info.reason=r1; return info; }
+      return at("latest").then(function(r2){
+        if(r2 && r2!=="__OK__"){ info.reason=r2; return info; }
+        info.replaySucceeded = (r1==="__OK__" || r2==="__OK__");
+        return info;
+      });
     });
-  }).catch(function(){ return null; });
+  }).catch(function(){ return {}; });
 }
 
 function receiptGas(hash){
@@ -5892,11 +5912,22 @@ function receiptGas(hash){
 function explainOnChainFailure(hash, tokenId, idx){
   log("sys","Reading the failed transaction back from the chain...");
   return Promise.all([replayFailedTx(hash), receiptGas(hash)]).then(function(r){
-    var reason=r[0], rc=r[1];
+    var info=r[0]||{}, rc=r[1];
+    var reason=info.reason;
+    var E=W3.ethers;
 
-    if(reason==="OUT_OF_GAS" || (rc && rc.used && rc.used.gte(W3.ethers.BigNumber.from(470000)))){
-      log("a","The transaction ran out of gas. The house will send the next one with a much larger limit.");
-      W3.gasBoost=(W3.gasBoost||1)*2;
+    var used = rc && rc.used ? rc.used : null;
+    var limit = info.gasLimit || null;
+    if(used && limit){
+      log("sys","Gas used "+used.toString()+" of a limit of "+limit.toString()+".");
+    }
+
+    var ranOut = !!(used && limit && used.mul(100).div(limit).gte(97));
+    if(ranOut || (info.replaySucceeded && !reason)){
+      var next=Math.min(2400000, Math.round((limit?limit.toNumber():480000)*2.5));
+      W3.gasBoost=Math.max(W3.gasBoost||1, next/480000);
+      log("a","The transaction ran out of gas. Nothing was lost except the gas it burned.");
+      log("a","Press the button below and the house will send it again with about "+next+" gas.");
       buttons([
         {label:"TRY AGAIN WITH MORE GAS",gold:true,big:true,fn:function(){ doStake(tokenId, idx); }},
         {label:"BACK",fn:function(){ counterButtons(idx); }}
@@ -5925,7 +5956,14 @@ function explainOnChainFailure(hash, tokenId, idx){
       }
       return true;
     }
-    return false;
+
+    log("a","The chain gave no reason at all, so the house will simply send it again with far more gas. That clears this in almost every case.");
+    W3.gasBoost=Math.max(W3.gasBoost||1, 2.5);
+    buttons([
+      {label:"TRY AGAIN WITH MORE GAS",gold:true,big:true,fn:function(){ doStake(tokenId, idx); }},
+      {label:"BACK",fn:function(){ counterButtons(idx); }}
+    ]);
+    return true;
   }).catch(function(){ return false; });
 }
 
@@ -6060,7 +6098,9 @@ function doStake(tokenId, idx){
     toast("CONFIRM THE DEPOSIT IN YOUR WALLET",null,0);
     return withGas(W3.staking,"stake",[tokenId],{value:fee});
   }).then(function(tx){
-    log("sys","Transaction sent. Waiting for confirmation.");
+    var gl=null;
+    try{ gl = tx && tx.gasLimit ? tx.gasLimit.toString() : null; }catch(e){}
+    log("sys","Transaction sent"+(gl?" with a gas limit of "+gl:"")+". Waiting for confirmation.");
     return waitFor(tx,"DEPOSIT");
   }).then(function(){
     toast("NFT LODGED IN THE VAULT","ok");
