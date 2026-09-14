@@ -139,7 +139,8 @@ button{font-family:inherit;cursor:pointer}
 
 #nav{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;justify-content:center;
   gap:5px;padding:10px;opacity:0;transition:opacity .9s;pointer-events:none;flex-wrap:wrap}
-#nav.on{opacity:1;pointer-events:auto}
+#nav.on{opacity:1}
+#nav.on .nb,#nav.on #wcBtn{pointer-events:auto}
 .nb{background:rgba(10,10,14,.92);border:2px solid #9c7a1c;color:#f0c14b;
   font-size:7px;padding:10px 11px;letter-spacing:1px;border-radius:3px}
 .nb:hover{border-color:#f0c14b;color:#ffe27a}
@@ -217,11 +218,11 @@ button{font-family:inherit;cursor:pointer}
 #introCard p{font-size:9.5px;color:#e8dcc0;line-height:2.2;margin-bottom:10px}
 #introCard small{display:block;font-size:8px;color:#8a7433;line-height:2.1;margin-bottom:18px}
 
-#stick{position:fixed;left:16px;bottom:62px;width:86px;height:86px;z-index:45;
+#stick{position:fixed;left:16px;bottom:118px;width:96px;height:96px;z-index:60;
   border:2px solid rgba(201,165,63,.45);border-radius:50%;
   background:rgba(10,10,14,.42);display:none;touch-action:none}
 #stick.on{display:block}
-#stickNub{position:absolute;left:50%;top:50%;width:32px;height:32px;margin:-16px 0 0 -16px;
+#stickNub{position:absolute;left:50%;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;
   border-radius:50%;background:rgba(240,193,75,.7);border:2px solid #ffe27a;
   box-shadow:0 0 10px rgba(240,193,75,.4)}
 #stickTag{display:none}
@@ -735,17 +736,13 @@ function buildCounter(b,idx){
   var trim=new THREE.Mesh(new THREE.BoxGeometry(8.3,0.1,0.16),GOLD);
   trim.position.set(0,3.24,2.5); grp.add(trim);
 
-  var pc=mkC(1024,320),p=pc.getContext("2d");
-  p.fillStyle="#181206"; p.fillRect(0,0,1024,320);
-  p.strokeStyle="#c9a53f"; p.lineWidth=10; p.strokeRect(14,14,996,292);
-  p.textAlign="center"; p.fillStyle="#9a8340"; p.font=PX(28);
-  p.fillText("COUNTER "+("0"+(idx+1)).slice(-2),512,84);
-  p.fillStyle="#ffe27a"; p.font=PX(58); p.fillText("$"+b.sym,512,166);
-  p.fillStyle="#c9a53f"; p.font=PX(22); p.fillText(b.name,512,222);
-  p.fillStyle="#9a8340"; p.font=PX(20); p.fillText(b.agent,512,268);
-  var plate=new THREE.Mesh(new THREE.PlaneGeometry(5.6,1.75),
-    new THREE.MeshBasicMaterial({map:tex(pc)}));
-  plate.position.set(0,1.75,2.22); plate.userData.counter=idx; grp.add(plate); clickTargets.push(plate);
+  var pc=mkC(1024,440);
+  var ptex=tex(pc);
+  var plate=new THREE.Mesh(new THREE.PlaneGeometry(5.6,2.4),
+    new THREE.MeshBasicMaterial({map:ptex}));
+  plate.position.set(0,1.9,2.22); plate.userData.counter=idx; grp.add(plate); clickTargets.push(plate);
+  b.liveCv=pc; b.liveTex=ptex;
+  drawCounterLive(idx,null);
 
   var twH=new THREE.Group(); twH.position.set(0,3.22,-0.9); twH.rotation.y=Math.PI; grp.add(twH);
   var sd=makeTypewriter(b.col,twH); sd.sym=b.sym; sheetData.push(sd);
@@ -2525,6 +2522,53 @@ function buildManagerDesk(){
   MGR.grp=grp;
 }
 
+function drawCounterLive(idx,info){
+  var b=BOOTHS[idx];
+  if(!b.liveCv) return;
+  var g=b.liveCv.getContext("2d");
+
+  g.fillStyle="#181206"; g.fillRect(0,0,1024,440);
+  g.strokeStyle="#c9a53f"; g.lineWidth=10; g.strokeRect(14,14,996,412);
+  g.textAlign="center";
+
+  g.fillStyle="#9a8340"; g.font=PX(26);
+  g.fillText("COUNTER "+("0"+(idx+1)).slice(-2),512,76);
+  g.fillStyle="#ffe27a"; g.font=PX(54);
+  g.fillText("$"+b.sym,512,152);
+  g.fillStyle="#c9a53f"; g.font=PX(20);
+  g.fillText(b.name,512,202);
+  g.fillStyle="#9a8340"; g.font=PX(18);
+  g.fillText(b.agent,512,244);
+
+  g.strokeStyle="#3a2f12"; g.lineWidth=4;
+  g.beginPath(); g.moveTo(90,274); g.lineTo(934,274); g.stroke();
+
+  if(!info){
+    g.fillStyle="#5c4d20"; g.font=PX(18);
+    g.fillText("IN CUSTODY",512,318);
+    g.fillStyle="#8a7433"; g.font=PX(34);
+    g.fillText("--",512,372);
+    b.liveTex.needsUpdate=true;
+    return;
+  }
+
+  g.fillStyle="#5c4d20"; g.font=PX(17);
+  g.fillText("IN CUSTODY",512,312);
+  g.fillStyle="#3ad07a"; g.font=PX(40);
+  g.fillText(""+info.staked,512,362);
+
+  if(info.poolLine){
+    g.fillStyle="#ffd964"; g.font=PX(17);
+    g.fillText(info.poolLine,512,396);
+    g.fillStyle="#8a7433"; g.font=PX(15);
+    g.fillText(info.eachLine,512,420);
+  } else {
+    g.fillStyle="#4a3d1a"; g.font=PX(15);
+    g.fillText(info.note||"POOL SETTLES AT THE BELL",512,404);
+  }
+  b.liveTex.needsUpdate=true;
+}
+
 function drawMgrPlate(info){
   if(!MGR.plate) return;
   var g=MGR.plate.cv.getContext("2d");
@@ -3783,7 +3827,7 @@ function returnToLobby(){
 function bindStick(){
   var st=document.getElementById("stick");
   var nub=document.getElementById("stickNub");
-  var R=31, id=null;
+  var R=34, id=null;
   function place(cx,cy,t){
     var r=st.getBoundingClientRect();
     var dx=cx-(r.left+r.width/2), dy=cy-(r.top+r.height/2);
@@ -4017,6 +4061,11 @@ function answer(idx,q){
   if(/STAKE|DEPOSIT|CUSTODY|NFT/.test(Q))
     return "Certainly. Press the deposit button and hand me your certificate. "+
       "If you do not hold one yet, our collection is on OpenSea at "+OPENSEA_URL+".";
+  if(/FEE|0\.0005|COST|CHARGE|WHY PAY|PAYMENT|DEPOSIT FEE/.test(Q))
+    return "The 0.0005 ETH is the deposit fee, taken once when a certificate first enters the vault. "+
+      "It is not the house's profit. It collects in the Community Growth Vault, is held for 30 days, "+
+      "and then returns to holders in full. It also keeps the vault from being spammed with deposits "+
+      "nobody means to leave. Staying in for another cycle costs nothing, and taking your NFT out costs nothing.";
   if(/BUY|WHERE|GET ONE|MINT|MARKETPLACE|OPENSEA/.test(Q))
     return "Royal Mechanica pieces trade on OpenSea. Open "+OPENSEA_URL+
       " and buy a $"+b.sym+" certificate, then bring it back to this counter.";
@@ -4801,11 +4850,30 @@ function walletError(msg){
 function rpcUrl(){ return RPC_URLS[W3.rpcIndex % RPC_URLS.length]; }
 function rotateRpc(){ W3.rpcIndex=(W3.rpcIndex+1)%RPC_URLS.length; }
 
+function withTimeout(promise, ms, label){
+  return new Promise(function(resolve,reject){
+    var done=false;
+    var t=setTimeout(function(){
+      if(done) return;
+      done=true;
+      reject(new Error((label||"request")+" timed out"));
+    }, ms);
+    promise.then(function(v){
+      if(done) return;
+      done=true; clearTimeout(t); resolve(v);
+    },function(e){
+      if(done) return;
+      done=true; clearTimeout(t); reject(e);
+    });
+  });
+}
+
 function rpc(method, params){
   var attempts=0;
+  var limit=Math.min(RPC_URLS.length,12);
   function tryOnce(){
     var url=rpcUrl();
-    return fetch(url,{
+    var call=fetch(url,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({jsonrpc:"2.0",id:Date.now(),method:method,params:params||[]})
@@ -4815,14 +4883,20 @@ function rpc(method, params){
     }).then(function(j){
       if(j.error) throw new Error(j.error.message||"rpc error");
       return j.result;
-    }).catch(function(err){
+    });
+    return withTimeout(call, 9000, method).catch(function(err){
       attempts++;
       rotateRpc();
-      if(attempts<Math.min(RPC_URLS.length,8)) return tryOnce();
+      if(attempts<limit){
+        var wait = attempts>RPC_URLS.length/2 ? 350 : 0;
+        if(!wait) return tryOnce();
+        return new Promise(function(res){ setTimeout(res,wait); }).then(tryOnce);
+      }
+      W3.rpcTrouble=true;
       throw err;
     });
   }
-  return tryOnce();
+  return tryOnce().then(function(v){ W3.rpcTrouble=false; return v; });
 }
 
 function readCall(iface, address, fn, args){
@@ -5134,7 +5208,14 @@ function connectWith(announced){
     walletError("Your wallet has not answered. Open it and approve the request, then try again.");
   }, 20000);
 
-  return prov.request({method:"eth_requestAccounts"}).then(function(accounts){
+  var ask = prov.request({method:"eth_accounts"}).then(function(a){
+    if(a && a.length) return a;
+    return prov.request({method:"eth_requestAccounts"});
+  }).catch(function(){
+    return prov.request({method:"eth_requestAccounts"});
+  });
+
+  return ask.then(function(accounts){
     clearTimeout(guard);
     if(!accounts || !accounts.length) throw new Error("No account returned");
     W3.selected=announced;
@@ -5193,6 +5274,9 @@ function connectWith(announced){
     if(e && e.code===4001) m="You rejected the connection request.";
     if(e && e.code===-32002) m="Your wallet is already asking you to connect. Open the wallet and approve it there.";
     if(e && e.code===-32603) m="Your wallet reported an internal error. Unlock it, then try again.";
+    if(/JSON-RPC|Internal JSON|rpc error|network error|Failed to fetch/i.test(m))
+      m="Your wallet could not reach the network. Switch it to Robinhood Chain, or change its RPC, then try again.";
+    if(/User denied|denied transaction|rejected/i.test(m)) m="You rejected the request in your wallet.";
     walletError(m);
     toast(m,"err",6000);
   });
@@ -5227,7 +5311,7 @@ function checkNetworkBadge(){
 }
 
 function ensureNetwork(prov){
-  return rpc("eth_chainId",[]).then(function(target){
+  return withTimeout(rpc("eth_chainId",[]), 12000, "chain id").then(function(target){
     W3.expectedChainId=target;
     return prov.request({method:"eth_chainId"}).then(function(current){
       W3.chainId=current;
@@ -5255,6 +5339,8 @@ function ensureNetwork(prov){
   }).catch(function(e){
     if(e && e.code===4001){
       toast("STAY ON ROBINHOOD CHAIN TO STAKE","err",6000);
+    } else if(e && /timed out/i.test(e.message||"")){
+      toast("THE NETWORK IS SLOW - YOUR WALLET IS STILL CONNECTED","err",6000);
     } else {
       toast("SWITCH YOUR WALLET TO ROBINHOOD CHAIN TO STAKE","err",6000);
     }
@@ -5348,6 +5434,11 @@ function accountPanel(){
     {label:"DISCONNECT",fn:function(){ disconnect(); closePanel(); }},
     {label:"CLOSE",fn:closePanel}
   ]);
+}
+
+function rpcHealthNote(){
+  if(!W3.rpcTrouble) return;
+  toast("THE NETWORK IS SLOW RIGHT NOW - RETRYING","err",5000);
 }
 
 function needWallet(){
@@ -5476,6 +5567,11 @@ function doStake(tokenId, idx){
     return;
   }
 
+  if(!marketIsOpenNow()){
+    toast("DEPOSITS ARE CLOSED UNTIL THE SESSION OPENS","err",5200);
+    marketClosedPanel(idx);
+    return;
+  }
   preflightStake(tokenId).then(function(pf){
     if(!pf.ok){
       throw new Error(pf.why);
@@ -5978,8 +6074,45 @@ function doUnstake(tokenId, idx){
   });
 }
 
+function marketClosedPanel(idx){
+  var b=BOOTHS[idx];
+  window.currentAgent=b.agent;
+  setPanel(b.agent+" &#183; $"+b.sym,"THE WINDOW IS SHUT",hex(b.col),false);
+  document.getElementById("pLog").innerHTML="";
+  log("sys","The counter shutter is down.");
+  log("a","I cannot take a deposit right now. The house only accepts certificates while the New York session is trading, 9:30 to 16:00 Eastern, Monday to Friday.");
+  log("a","The session "+marketOpensText().toLowerCase()+". Come back then and this counter opens on its own, with no refresh needed.");
+  if(W3.counts){
+    log("sys","$"+b.sym+" currently holds "+W3.counts[idx]+" certificate"
+      +(W3.counts[idx]===1?"":"s")+" in the vault.");
+  }
+  var btns=[];
+  var mine=(W3.stakedByCat&&W3.stakedByCat[idx])||0;
+  if(mine>0){
+    btns.push({label:"RELEASE FROM THE VAULT",big:true,fn:function(){ liveUnstakeList(idx); }});
+  }
+  btns.push({label:"WHY THE 0.0005 ETH FEE?",fn:function(){ feePanel(idx); }});
+  btns.push({label:"BACK",big:true,fn:function(){ counterButtons(idx); }});
+  buttons(btns);
+}
+
+function feePanel(idx){
+  var b=BOOTHS[idx];
+  window.currentAgent=b.agent;
+  setPanel(b.agent+" &#183; $"+b.sym,"THE DEPOSIT FEE",hex(b.col),false);
+  document.getElementById("pLog").innerHTML="";
+  var fee = (W3.depositFee && W3.ethers)
+    ? W3.ethers.utils.formatEther(W3.depositFee) : "0.0005";
+  log("a","The house charges "+fee+" ETH each time a certificate first enters the vault.");
+  log("a","It is not the house's profit. Every one of those fees collects in the Community Growth Vault, is held for 30 days, and then returns to holders in full.");
+  log("a","It also does the work of a lock. A deposit that costs nothing can be spammed a thousand times a minute, and the vault would fill with certificates nobody means to leave. A small fee keeps the ledger honest.");
+  log("a","You pay it once, when the NFT goes in. Staying in for another 24 hours costs nothing, and taking it out costs nothing.");
+  buttons([{label:"BACK",big:true,fn:function(){ counterButtons(idx); }}]);
+}
+
 function liveStakeList(idx){
   var b=BOOTHS[idx];
+  if(!marketIsOpenNow()){ marketClosedPanel(idx); return; }
   var list=W3.myTokens[idx]||[];
   var holdsNothing = true;
   for(var ci=0;ci<6;ci++){ if((W3.myTokens[ci]||[]).length){ holdsNothing=false; break; } }
@@ -6189,8 +6322,13 @@ function patchPanels(){
       extra.push({label:"CONNECT WALLET TO DEPOSIT",gold:true,big:true,fn:openWalletModal});
     } else {
       var own=(W3.myTokens[idx]||[]).length;
-      extra.push({label:"DEPOSIT A $"+BOOTHS[idx].sym+" NFT"+(own?"  ("+own+")":""),
-        gold:true,big:true,fn:function(){ liveStakeList(idx); }});
+      if(marketIsOpenNow()){
+        extra.push({label:"DEPOSIT A $"+BOOTHS[idx].sym+" NFT"+(own?"  ("+own+")":""),
+          gold:true,big:true,fn:function(){ liveStakeList(idx); }});
+      } else {
+        extra.push({label:"DEPOSITS CLOSED  -  "+marketOpensText(),
+          big:true,fn:function(){ marketClosedPanel(idx); }});
+      }
       extra.push({label:"RELEASE FROM THE VAULT",big:true,fn:function(){ liveUnstakeList(idx); }});
       var amt=W3.pending[idx];
       if(amt && amt.gt && amt.gt(0)){
@@ -6544,6 +6682,91 @@ function timerPanel(){
   ]);
 }
 
+W3.counts = null;
+W3.pool = null;
+
+function marketIsOpenNow(){
+  if(typeof nyNow!=="function" || typeof isOpen!=="function") return true;
+  try{ return isOpen(nyNow()); }catch(e){ return true; }
+}
+
+function marketOpensText(){
+  try{ return sessionText(nyNow()); }catch(e){ return ""; }
+}
+
+function loadCounterCounts(){
+  var jobs=[];
+  for(var i=0;i<6;i++){
+    (function(boothIdx){
+      jobs.push(readCall(W3.readIface,STAKING_ADDRESS,"stakedPerCategory",[boothToChain(boothIdx)])
+        .then(function(r){
+          var v=r[0];
+          return v.toNumber ? v.toNumber() : Number(v);
+        }).catch(function(){ return null; }));
+    })(i);
+  }
+  return Promise.all(jobs).then(function(list){
+    if(list.every(function(x){ return x===null; })) return null;
+    W3.counts=list.map(function(x){ return x===null?0:x; });
+    return W3.counts;
+  });
+}
+
+function computePool(){
+  var counts=W3.counts;
+  if(!counts) return null;
+  var total=counts.reduce(function(a,b2){ return a+b2; },0);
+  var poolEth=(window.TREASURY && TREASURY.daily) ? TREASURY.daily : 0;
+  if(total<=0 || poolEth<=0) return { total:total, poolEth:poolEth, rows:null };
+  var rows=counts.map(function(n){
+    var share=poolEth*(n/total);
+    return { staked:n, shareEth:share, eachEth:n>0?share/n:0 };
+  });
+  return { total:total, poolEth:poolEth, rows:rows };
+}
+
+function eth(v){
+  if(!(v>0)) return "0 ETH";
+  if(v>=1) return v.toFixed(4)+" ETH";
+  if(v>=0.001) return v.toFixed(5)+" ETH";
+  if(v>=0.000001) return v.toFixed(7)+" ETH";
+  return v.toExponential(2)+" ETH";
+}
+
+function refreshCounterPlates(){
+  if(typeof drawCounterLive!=="function") return;
+  var counts=W3.counts;
+  if(!counts){
+    for(var i=0;i<6;i++) drawCounterLive(i,null);
+    return;
+  }
+  var open=marketIsOpenNow();
+  var pool=computePool();
+  W3.pool=pool;
+
+  for(var c=0;c<6;c++){
+    var info={ staked:counts[c] };
+    if(!open && pool && pool.rows && counts[c]>0){
+      var row=pool.rows[c];
+      info.poolLine = "POOL "+eth(row.shareEth);
+      info.eachLine = eth(row.eachEth)+" EACH";
+    } else if(open){
+      info.note="POOL SETTLES AT THE BELL";
+    } else if(counts[c]===0){
+      info.note="NOTHING IN CUSTODY";
+    } else {
+      info.note="POOL NOT FUNDED YET";
+    }
+    drawCounterLive(c,info);
+  }
+}
+
+function refreshLiveBoard(){
+  return Promise.all([loadCounterCounts(), refreshTreasury()])
+    .then(function(){ refreshCounterPlates(); })
+    .catch(function(){});
+}
+
 function boot(){
   injectStyles();
   buildUI();
@@ -6557,6 +6780,9 @@ function boot(){
     refreshTreasury();
     updateHoldingsBoard();
     autoReconnect();
+    refreshLiveBoard();
+    setInterval(refreshLiveBoard, 90000);
+    setInterval(refreshCounterPlates, 20000);
     setTimeout(function(){ revealMarketArt(false); }, 2500);
     setInterval(function(){
       if(W3.address && Date.now()-W3.lastRefresh>45000) refreshChainState();
@@ -6570,6 +6796,11 @@ function boot(){
 }
 
 W3.api = {
+  withTimeout:withTimeout, rpcHealthNote:rpcHealthNote,
+  marketClosedPanel:marketClosedPanel, feePanel:feePanel, marketOpensText:marketOpensText,
+  loadCounterCounts:loadCounterCounts, computePool:computePool, refreshLiveBoard:refreshLiveBoard,
+  refreshCounterPlates:refreshCounterPlates, eth:eth,
+  marketIsOpenNow:marketIsOpenNow,
   chainToBooth:chainToBooth, boothToChain:boothToChain,
   collectLegacyProviders:collectLegacyProviders, loadEthers:loadEthers,
   loadChainCategories:loadChainCategories,
