@@ -5542,6 +5542,11 @@ function txError(e){
   if(m.indexOf("WRONG_NETWORK")>=0)
     m="Your wallet is not on Robinhood Chain. Switch it there and try again. Nothing was sent.";
   if(m.indexOf("WALLET_NOT_CONNECTED")>=0) m="Connect your wallet first.";
+  if(m.indexOf("TX_REVERTED_ON_CHAIN")>=0) m="The chain rejected the transaction.";
+  if(m.indexOf("APPROVAL_NOT_REGISTERED")>=0)
+    m="The approval did not register on the collection. Try approving just this one token instead.";
+  if(m.indexOf("OUT_OF_GAS")>=0) m="The transaction ran out of gas.";
+  if(/CALL_EXCEPTION|transaction failed/i.test(m)) m="The chain rejected the transaction.";
   if(m.indexOf("TRANSFER_BLOCKED")>=0) m="The certificate did not reach the vault. Approve the vault again, then retry.";
   if(/not token owner or approved|transfer caller is not owner/i.test(m))
     m="The vault is not approved to move this NFT yet. Approve it once and try again.";
@@ -5828,7 +5833,9 @@ function estimateOnOurRpc(contract, method, args, ov){
 function withGas(contract, method, args, overrides){
   var ov=overrides||{};
   var E=W3.ethers;
-  var fallback=E.BigNumber.from(GAS_FALLBACK[method] || 500000);
+  var boost=W3.gasBoost||1;
+  var fallback=E.BigNumber.from(Math.min(2400000,
+    Math.round((GAS_FALLBACK[method] || 500000) * boost)));
 
   function send(gasLimit){
     var o={};
@@ -5839,6 +5846,7 @@ function withGas(contract, method, args, overrides){
 
   return estimateOnOurRpc(contract, method, args, ov).then(function(est){
     var bumped=est.mul(150).div(100);
+    if(boost>1) bumped=bumped.mul(Math.round(boost*100)).div(100);
     if(bumped.lt(fallback.div(3))) bumped=fallback.div(3);
     return send(bumped);
   }).catch(function(err){
@@ -5852,12 +5860,94 @@ function withGas(contract, method, args, overrides){
   });
 }
 
+function replayFailedTx(hash){
+  if(!hash) return Promise.resolve(null);
+  return rpc("eth_getTransactionByHash",[hash]).then(function(tx){
+    if(!tx) return null;
+    var call={ from:tx.from, to:tx.to, data:tx.input, value:tx.value||"0x0" };
+    var block = tx.blockNumber || "latest";
+    return rpc("eth_call",[call, block]).then(function(){
+      return "OUT_OF_GAS";
+    }).catch(function(e){
+      var msg=(e && e.message) || "";
+      var m=msg.match(/0x08c379a0[0-9a-fA-F]*/);
+      if(m){ var r=decodeRevert(m[0]); if(r) return r; }
+      var q=msg.match(/execution reverted:?\s*"?([^"\n]{3,90})"?/i);
+      if(q && q[1]) return q[1].trim();
+      return null;
+    });
+  }).catch(function(){ return null; });
+}
+
+function receiptGas(hash){
+  return rpc("eth_getTransactionReceipt",[hash]).then(function(r){
+    if(!r) return null;
+    return {
+      used: W3.ethers.BigNumber.from(r.gasUsed||"0x0"),
+      status: r.status
+    };
+  }).catch(function(){ return null; });
+}
+
+function explainOnChainFailure(hash, tokenId, idx){
+  log("sys","Reading the failed transaction back from the chain...");
+  return Promise.all([replayFailedTx(hash), receiptGas(hash)]).then(function(r){
+    var reason=r[0], rc=r[1];
+
+    if(reason==="OUT_OF_GAS" || (rc && rc.used && rc.used.gte(W3.ethers.BigNumber.from(470000)))){
+      log("a","The transaction ran out of gas. The house will send the next one with a much larger limit.");
+      W3.gasBoost=(W3.gasBoost||1)*2;
+      buttons([
+        {label:"TRY AGAIN WITH MORE GAS",gold:true,big:true,fn:function(){ doStake(tokenId, idx); }},
+        {label:"BACK",fn:function(){ counterButtons(idx); }}
+      ]);
+      return true;
+    }
+
+    if(reason){
+      var pretty=txError({message:reason});
+      log("a",pretty);
+      log("sys","The chain reported: "+reason);
+      toast(pretty,"err",7000);
+      if(approvalHint(reason) || reason==="TRANSFER_BLOCKED"){
+        buttons([
+          {label:"APPROVE THE VAULT AGAIN",gold:true,big:true,fn:function(){
+            doApprove().then(function(){ doStake(tokenId, idx); }).catch(function(){ counterButtons(idx); });
+          }},
+          {label:"APPROVE ONLY #"+tokenId,fn:function(){ approveOne(tokenId, idx); }},
+          {label:"BACK",fn:function(){ counterButtons(idx); }}
+        ]);
+      } else {
+        buttons([
+          {label:"TRY AGAIN",gold:true,big:true,fn:function(){ doStake(tokenId, idx); }},
+          {label:"BACK",fn:function(){ counterButtons(idx); }}
+        ]);
+      }
+      return true;
+    }
+    return false;
+  }).catch(function(){ return false; });
+}
+
 function waitFor(tx, label){
   toast(label+" SENT - WAITING FOR THE CHAIN",null,0);
   return tx.wait(1).then(function(rc){
-    if(rc && rc.status === 0) throw new Error("The chain rejected this transaction.");
+    if(rc && rc.status === 0){
+      var err=new Error("TX_REVERTED_ON_CHAIN");
+      err.transactionHash=tx.hash;
+      throw err;
+    }
     return { hash:tx.hash, rc:rc };
+  }).catch(function(e){
+    if(e && !e.transactionHash && tx && tx.hash) e.transactionHash=tx.hash;
+    throw e;
   });
+}
+
+function verifyApprovalOnChain(){
+  return readCall(W3.nftIface,NFT_ADDRESS,"isApprovedForAll",[W3.address,STAKING_ADDRESS])
+    .then(function(r){ W3.approved=!!(r && r[0]); return W3.approved; })
+    .catch(function(){ return W3.approved; });
 }
 
 function doApprove(){
@@ -5867,7 +5957,12 @@ function doApprove(){
   return withGas(W3.nft,"setApprovalForAll",[STAKING_ADDRESS,true],{})
     .then(function(tx){ return waitFor(tx,"APPROVAL"); })
     .then(function(){
-      W3.approved=true;
+      return verifyApprovalOnChain();
+    }).then(function(okNow){
+      if(!okNow){
+        log("sys","The approval transaction went through but the collection still reports no permission.");
+        throw new Error("APPROVAL_NOT_REGISTERED");
+      }
       toast("VAULT APPROVED","ok");
     }).catch(function(e){
       toast(txError(e),"err",6000);
@@ -5981,6 +6076,18 @@ function doStake(tokenId, idx){
     log("sys","The deposit did not go through. Checking with the vault...");
     var raw=(e && e.message) || "";
     if(raw==="APPROVAL_MISSING"){ offerApproval(tokenId, idx); return; }
+
+    var hash=(e && (e.transactionHash || (e.receipt && e.receipt.transactionHash))) || null;
+    if(!hash){
+      var hm=raw.match(/transactionHash="?(0x[0-9a-fA-F]{64})/);
+      if(hm) hash=hm[1];
+    }
+    if(hash){
+      explainOnChainFailure(hash, tokenId, idx).then(function(handled){
+        if(!handled) deepDiagnose(tokenId, idx, raw);
+      });
+      return;
+    }
 
     approvalState(tokenId).then(function(appr){
       if(appr && appr.all===false && appr.one===false){
@@ -7300,6 +7407,8 @@ function boot(){
 }
 
 W3.api = {
+  verifyApprovalOnChain:verifyApprovalOnChain,
+  replayFailedTx:replayFailedTx, explainOnChainFailure:explainOnChainFailure, receiptGas:receiptGas,
   estimateOnOurRpc:estimateOnOurRpc,
   simulateNftPull:simulateNftPull, approvalState:approvalState, deepDiagnose:deepDiagnose,
   requireNetwork:requireNetwork, networkWarn:networkWarn, currentWalletChain:currentWalletChain,
