@@ -175,7 +175,19 @@ button{font-family:inherit;cursor:pointer}
 .msg.q{color:#8fb4d6}.msg.a{color:#e8dcc0}.msg.sys{color:#c9a53f}
 .msg b{color:#ffe27a;font-weight:normal}
 .msg span{color:#c9a53f}
-#pBtns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+#pBtns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;
+  max-height:46vh;overflow-y:auto;align-content:flex-start;
+  padding-right:4px;scrollbar-width:thin}
+#pBtns::-webkit-scrollbar{width:7px}
+#pBtns::-webkit-scrollbar-thumb{background:#4a3a12;border-radius:4px}
+#pBtns::-webkit-scrollbar-track{background:#14110a}
+#pPager{display:flex;gap:6px;align-items:center;margin:0 0 9px;
+  font-size:8px;color:#8a7433;letter-spacing:1px;flex-wrap:wrap}
+#pPager button{background:#14110a;border:2px solid #9c7a1c;color:#f0c14b;
+  font-family:inherit;font-size:8px;padding:8px 11px;border-radius:3px;cursor:pointer}
+#pPager button:disabled{opacity:.35}
+#pFilter{width:100%;background:#0a0906;border:2px solid #2e2510;color:#ffe27a;
+  font-family:inherit;font-size:9px;padding:9px 10px;border-radius:3px;margin-bottom:9px}
 .pb{background:#14110a;border:2px solid var(--dc,#9c7a1c);color:#f0c14b;
   font-size:8.5px;padding:11px 13px;letter-spacing:.5px;border-radius:3px;line-height:1.7}
 .pb:hover{background:#221b0c;color:#ffe27a}
@@ -206,7 +218,9 @@ button{font-family:inherit;cursor:pointer}
   .msg{font-size:8.5px}
   .pb{font-size:7.5px;padding:10px 11px}
   .pb.big{font-size:8.5px;padding:12px 14px}
-  #panel{max-height:66vh}
+  #panel{max-height:74vh}
+  #pBtns{max-height:40vh}
+  #pLog{max-height:132px}
 }
 
 #intro{position:fixed;inset:0;z-index:86;background:rgba(5,5,8,.9);display:none;
@@ -308,7 +322,9 @@ button{font-family:inherit;cursor:pointer}
     <button id="pClose">&#10005;</button>
   </div>
   <div id="pLog"></div>
-  <div id="pBtns"></div>
+  <input id="pFilter" placeholder="TYPE A TOKEN NUMBER TO FILTER" style="display:none">
+<div id="pPager"></div>
+<div id="pBtns"></div>
   <div id="pForm">
     <input id="pInput" placeholder="TYPE YOUR QUESTION..." autocomplete="off">
     <button id="pSend">ASK</button>
@@ -4074,13 +4090,90 @@ function log(kind,text){
     "<b>"+currentAgent+":</b> "+text;
   pLog.appendChild(d); pLog.scrollTop=pLog.scrollHeight;
 }
-function buttons(list){
+var PAGE_SIZE=24;
+var pageState=null;
+
+function renderPage(){
+  var st=pageState;
   pBtns.innerHTML="";
-  list.forEach(function(b){
+  var pager=document.getElementById("pPager");
+  var filter=document.getElementById("pFilter");
+  if(!st){
+    pager.innerHTML=""; pager.style.display="none";
+    filter.style.display="none";
+    return;
+  }
+
+  var q=(st.query||"").trim().toUpperCase();
+  var rows=st.rows;
+  if(q) rows=rows.filter(function(b){ return String(b.label).toUpperCase().indexOf(q)>=0; });
+
+  var total=rows.length;
+  var pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  if(st.page>=pages) st.page=pages-1;
+  if(st.page<0) st.page=0;
+  var from=st.page*PAGE_SIZE;
+  var slice=rows.slice(from, from+PAGE_SIZE);
+
+  slice.forEach(function(b){
     var el=document.createElement("button");
     el.className="pb"+(b.gold?" gold":"")+(b.big?" big":"");
     el.textContent=b.label; el.onclick=b.fn; pBtns.appendChild(el);
   });
+  st.fixed.forEach(function(b){
+    var el=document.createElement("button");
+    el.className="pb"+(b.gold?" gold":"")+(b.big?" big":"");
+    el.textContent=b.label; el.onclick=b.fn; pBtns.appendChild(el);
+  });
+
+  if(total>PAGE_SIZE || q){
+    pager.style.display="flex";
+    pager.innerHTML="";
+    var prev=document.createElement("button");
+    prev.textContent="\u25C0 PREV"; prev.disabled = st.page<=0;
+    prev.onclick=function(){ st.page--; renderPage(); pBtns.scrollTop=0; };
+    var next=document.createElement("button");
+    next.textContent="NEXT \u25B6"; next.disabled = st.page>=pages-1;
+    next.onclick=function(){ st.page++; renderPage(); pBtns.scrollTop=0; };
+    var tag=document.createElement("span");
+    tag.textContent="SHOWING "+(total?from+1:0)+"-"+Math.min(total,from+PAGE_SIZE)
+      +" OF "+total+(q?"  (FILTERED)":"");
+    pager.appendChild(prev); pager.appendChild(next); pager.appendChild(tag);
+  } else {
+    pager.style.display="none"; pager.innerHTML="";
+  }
+
+  if(st.rows.length>PAGE_SIZE){
+    filter.style.display="block";
+    filter.oninput=function(){ st.query=filter.value; st.page=0; renderPage(); };
+  } else {
+    filter.style.display="none";
+    filter.value="";
+  }
+}
+
+function buttons(list, pageable){
+  var arr=list||[];
+  if(!pageable || arr.length<=PAGE_SIZE){
+    pageState=null;
+    pBtns.innerHTML="";
+    var pg=document.getElementById("pPager");
+    var fl=document.getElementById("pFilter");
+    if(pg){ pg.innerHTML=""; pg.style.display="none"; }
+    if(fl){ fl.style.display="none"; fl.value=""; }
+    arr.forEach(function(b){
+      var el=document.createElement("button");
+      el.className="pb"+(b.gold?" gold":"")+(b.big?" big":"");
+      el.textContent=b.label; el.onclick=b.fn; pBtns.appendChild(el);
+    });
+    return;
+  }
+  var fixed=[], rows=[];
+  arr.forEach(function(b){ (b.pin?fixed:rows).push(b); });
+  pageState={ rows:rows, fixed:fixed, page:0, query:"" };
+  var fl2=document.getElementById("pFilter");
+  if(fl2) fl2.value="";
+  renderPage();
 }
 
 var PRESETS=["WHAT IS THE CURRENT PRICE?","IS THE MARKET OPEN?","WHEN DOES THE MARKET OPEN?",
@@ -5201,7 +5294,7 @@ function fmtLeft(seconds){
 
 function verifyChainCategories(ids){
   if(!ids || !ids.length) return;
-  var sample=ids.slice(0,40);
+  var sample=ids.slice(0,200);
   readCall(W3.readIface,STAKING_ADDRESS,"categoriesOfBatch",[sample]).then(function(res){
     var cats=res[0];
     var bad=0;
@@ -6610,10 +6703,10 @@ function closedHoldingsPanel(idx){
   document.getElementById("pLog").innerHTML="";
   log("sys","Wallet "+short(W3.address));
   log("a","These are the $"+b.sym+" certificates you hold. Each one is accepted at this counter and nowhere else.");
-  own.slice(0,20).forEach(function(id){
+  own.slice(0,12).forEach(function(id){
     log("sys","#"+id+"  $"+b.sym+"  -  ready to deposit");
   });
-  if(own.length>20) log("sys","and "+(own.length-20)+" more.");
+  if(own.length>12) log("sys","and "+(own.length-12)+" more.");
   log("a","The window is shut for now. "+marketOpensText()+" and then each of these can go in.");
   buttons([
     {label:"BACK",gold:true,big:true,fn:function(){ marketClosedPanel(idx); }},
@@ -6698,17 +6791,17 @@ function liveStakeList(idx){
     log("a","You also hold "+parts.join(", ")+". Those must be handed in at their own counters.");
   }
 
-  var btns=list.slice(0,18).map(function(id){
+  var btns=list.map(function(id){
     return {label:"#"+id+"  "+symbolOfToken(id),fn:function(){ doStake(id,idx); }};
   });
 
   elsewhere.forEach(function(e){
-    btns.push({label:"GO TO $"+SYMS[e.cat]+" COUNTER  ("+e.count+")",
+    btns.push({label:"GO TO $"+SYMS[e.cat]+" COUNTER  ("+e.count+")",pin:true,
       fn:function(){ closePanel(); walkToSpot(e.cat); }});
   });
 
-  btns.push({label:"BACK",big:true,fn:function(){ counterButtons(idx); }});
-  buttons(btns);
+  btns.push({label:"BACK",big:true,pin:true,fn:function(){ counterButtons(idx); }});
+  buttons(btns,true);
 }
 
 function liveUnstakeList(idx){
@@ -6719,7 +6812,7 @@ function liveUnstakeList(idx){
   setPanel(b.agent+" &#183; $"+b.sym,"RELEASE A CERTIFICATE",hex(b.col),false);
   buttons([]);
   log("sys","Reading the vault register.");
-  var mine=W3.myStaked.slice(0,40);
+  var mine=W3.myStaked.slice(0,400);
   if(!mine.length){
     log("a","Nothing of yours is in the vault at the moment.");
     buttons([{label:"BACK",big:true,fn:function(){ counterButtons(idx); }}]);
@@ -6757,8 +6850,36 @@ function liveUnstakeList(idx){
         doUnstake(r.id,idx);
       }};
     });
-    btns.push({label:"BACK",big:true,fn:function(){ counterButtons(idx); }});
-    buttons(btns);
+    btns.push({label:"BACK",big:true,pin:true,fn:function(){ counterButtons(idx); }});
+    buttons(btns,true);
+  });
+}
+
+function claimBatch(rows){
+  if(needWallet()) return;
+  var ids=rows.slice(0,60).map(function(r){ return r.id; });
+  buttons([]);
+  log("sys","Claiming "+ids.length+" cycle"+(ids.length===1?"":"s")+" in one go.");
+  toast("CONFIRM THE CLAIM IN YOUR WALLET",null,0);
+  requireNetwork().then(function(){
+    return withGas(W3.staking,"claimForTokens",[ids],{});
+  }).then(function(tx){
+    return waitFor(tx,"CYCLE CLAIM");
+  }).then(function(){
+    toast("CYCLES CLAIMED","ok");
+    return refreshChainState();
+  }).then(function(){
+    return withGas(W3.staking,"claimAllRewards",[],{});
+  }).then(function(tx){
+    return waitFor(tx,"PAYOUT");
+  }).then(function(){
+    toast("REWARDS SENT TO YOUR WALLET","ok");
+    return refreshChainState();
+  }).then(function(){
+    liveVaultPanel();
+  }).catch(function(e){
+    toast(txError(e),"err",6000);
+    liveVaultPanel();
   });
 }
 
@@ -6803,7 +6924,7 @@ function liveVaultPanel(){
     }
 
     var btns=[];
-    rows.slice(0,10).forEach(function(r){
+    rows.forEach(function(r){
       var sym=symbolOfToken(r.id);
       if(r.claimable>0){
         btns.push({label:"CLAIM #"+r.id+"  "+sym,gold:true,big:true,
@@ -6817,7 +6938,7 @@ function liveVaultPanel(){
           }});
       }
     });
-    rows.slice(0,10).forEach(function(r){
+    rows.forEach(function(r){
       if(!r.unlockable) return;
       var sym=symbolOfToken(r.id);
       var warn = r.claimable>0;
@@ -6830,9 +6951,14 @@ function liveVaultPanel(){
         }});
     });
 
-    btns.push({label:"REFRESH",fn:function(){ liveVaultPanel(); }});
-    btns.push({label:"BACK TO THE HALL",fn:returnToLobby});
-    buttons(btns);
+    btns.push({label:"CLAIM EVERY OPEN REWARD",gold:true,big:true,pin:true,fn:function(){
+      var ready=rows.filter(function(r){ return r.claimable>0; });
+      if(!ready.length){ toast("NOTHING IS OPEN YET","err"); return; }
+      claimBatch(ready);
+    }});
+    btns.push({label:"REFRESH",pin:true,fn:function(){ liveVaultPanel(); }});
+    btns.push({label:"BACK TO THE HALL",pin:true,fn:returnToLobby});
+    buttons(btns,true);
   });
 }
 
@@ -7185,7 +7311,7 @@ function loadTimerRows(){
     refreshTimerPlate();
     return Promise.resolve([]);
   }
-  var ids=W3.myStaked.slice(0,40);
+  var ids=W3.myStaked.slice(0,400);
   return Promise.all(ids.map(function(id){
     return readCall(W3.readIface,STAKING_ADDRESS,"stakeDetails",[id])
       .then(function(r){ return readStake(id,r); })
@@ -7224,7 +7350,11 @@ function timerPanel(){
     return;
   }
   var now=Math.floor(Date.now()/1000);
-  rows.slice(0,8).forEach(function(r){
+  var ready=rows.filter(function(r){ return r.claimable>0; });
+  var waiting=rows.filter(function(r){ return r.claimable<=0; });
+  if(ready.length) log("sys",ready.length+" reward"+(ready.length===1?" is":"s are")+" open right now.");
+  var shown=ready.concat(waiting).slice(0,10);
+  shown.forEach(function(r){
     var sym=symbolOfToken(r.id);
     if(r.claimable>0){
       log("sys","#"+r.id+" "+sym+" - reward is ready now"+(r.unlockable?", and it can be unstaked":""));
@@ -7233,6 +7363,7 @@ function timerPanel(){
       log("sys","#"+r.id+" "+sym+" - reward opens in "+fmtLeft(left));
     }
   });
+  if(rows.length>10) log("sys","and "+(rows.length-10)+" more in the register.");
   buttons([
     {label:"OPEN MY VAULT REGISTER",gold:true,big:true,fn:liveVaultPanel},
     {label:"REFRESH",fn:function(){ loadTimerRows().then(timerPanel); }},
@@ -7354,6 +7485,7 @@ function boot(){
 }
 
 W3.api = {
+  claimBatch:claimBatch,
   buyCredits:buyCredits, creditsNeeded:creditsNeeded, pushDiagnose:pushDiagnose,
   decodeCustomError:decodeCustomError, rawDataFrom:rawDataFrom, rpcRaw:rpcRaw,
   replayFailedTx:replayFailedTx, explainOnChainFailure:explainOnChainFailure, receiptGas:receiptGas,
